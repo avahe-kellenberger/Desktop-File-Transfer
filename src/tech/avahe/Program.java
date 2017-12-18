@@ -17,11 +17,25 @@ public class Program {
 	/**
 	 * @throws IOException 
 	 */
-	public Program() throws IOException {
+	public Program() {
+		try {
+			// TODO: If the program cannot interact with the file system,
+			// Open a dialogue notifying the using, and use the default username for the session.
+			this.init();
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
+	}
+	
+	/**
+	 * 
+	 * @throws IOException
+	 */
+	private void init() throws IOException {
 		Map<String, String> settings = Settings.getSettings();
 		if (settings == null) {
 			// Settings file doesn't exist; create the file.
-			settings = Settings.createDefaultConfigFile();
+			settings = Settings.writeDefaultSettings();
 		}
 		final String usernameKey = Settings.Keys.USERNAME.getName();
 		// Iterate through settings, to find the username.
@@ -48,6 +62,20 @@ public class Program {
 	 */
 	public String getUsername() {
 		return this.username;
+	}
+	
+	/**
+	 * 
+	 * @param name
+	 * @return
+	 */
+	public boolean setUsername(final String name) {
+		// TODO: Attempt to save username to config file.
+		if (!this.username.equals(name)) {
+			this.username = name;
+			return true;
+		}
+		return false;
 	}
 	
 }

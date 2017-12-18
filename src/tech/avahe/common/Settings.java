@@ -2,7 +2,6 @@ package tech.avahe.common;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -10,10 +9,17 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import javax.swing.JFrame;
+
 /**
  * 
  * @author Avahe
- *
+ * This class handles the reading and writing associated with the user settings (configuration file).
+ * The config file is an *.ini file, using the key=value format, which each key on a new line.
+ * 
+ * The settings are as follows:
+ * 		username=The user's display name
+ * 		gui-state=(A value from {JFrame#getExtendedState})
  */
 public class Settings {
 
@@ -22,7 +28,8 @@ public class Settings {
 	 */
 	public enum Keys {
 		
-		USERNAME("username", System.getProperty("user.name"));
+		USERNAME("username", System.getProperty("user.name")),
+		GUI_STATE("gui-state", "" + JFrame.NORMAL);
 		
 		private final String name;
 		private final String defaultValue;
@@ -53,24 +60,24 @@ public class Settings {
 		
 	}
 	
-	// The direction where settings for the application are placed.
-	public static final String SETTINGS_DIR = 
-			(System.getProperty("os.name").toLowerCase().contains("win") ? 
-					System.getenv("APPDATA") : System.getProperty("user.home")) + "/.FileTransfer/";
-	
-	// The configuration file name.
-	public static final File CONFIG_FILE = new File(Settings.SETTINGS_DIR + "config.ini");
-	
 	/**
-	 * Creates the default configuration file, as defined by Settings.Keys.
-	 * @return Key/Value pairs of the file.
-	 * @throws IOException Thrown if the file cannot be written to.
+	 * @return The default configuration map.
 	 */
-	public static Map<String, String> createDefaultConfigFile() throws IOException {
+	public static Map<String, String> getDefaultSettings() {
 		final LinkedHashMap<String, String> settings = new LinkedHashMap<>();
 		for (final Keys key : Keys.values()) {
 			settings.put(key.getName(), key.getDefaultValue());
 		}
+		return settings;
+	}
+	
+	/**
+	 * Creates the default configuration file, as defined by Settings.Keys.
+	 * @return Key/Value pairs of the file.
+	 * @throws IOException Thrown if the config file cannot be written to.
+	 */
+	public static Map<String, String> writeDefaultSettings() throws IOException {
+		final Map<String, String> settings = Settings.getDefaultSettings();
 		Settings.writeSettings(settings);
 		return settings;
 	}
@@ -78,11 +85,11 @@ public class Settings {
 	/**
 	 * Loads the configuration settings from config file.
 	 * @return The configuration settings.
-	 * @throws IOException Thrown if the file cannot be read from.
+	 * @throws IOException Thrown if the file exists but cannot be read from.
 	 */
 	public static Map<String, String> getSettings() throws IOException {
-		if (Settings.CONFIG_FILE.exists()) {
-			try (final BufferedReader reader = new BufferedReader(new FileReader(Settings.CONFIG_FILE))) {
+		if (Environment.CONFIG_FILE.exists()) {
+			try (final BufferedReader reader = new BufferedReader(new FileReader(Environment.CONFIG_FILE))) {
 				final LinkedHashMap<String, String> settings = new LinkedHashMap<>();
 				String line;
 				while ((line = reader.readLine()) != null) {
@@ -121,7 +128,7 @@ public class Settings {
 	 * Updates the current settings file with the a singular updated setting.
 	 * @param updatedSetting The setting to update or add to the settings file.
 	 * @return The settings after being updated.
-	 * @throws IOException Thrown if the file cannot be written to.
+	 * @throws IOException Thrown if the config file cannot be written to.
 	 */
 	public static Map<String, String> updateSetting(final String key, final String value) throws IOException {
 		return Settings.updateSettings(Collections.singletonMap(key, value));
@@ -133,7 +140,7 @@ public class Settings {
 	 * @throws IOException Thrown if the file cannot be written to.
 	 */
 	public static void writeSettings(final Map<String, String> settings) throws IOException {
-		try (final BufferedWriter writer = new BufferedWriter(new FileWriter(Settings.CONFIG_FILE))) {
+		try (final BufferedWriter writer = new BufferedWriter(new FileWriter(Environment.CONFIG_FILE))) {
 			for (final Map.Entry<String, String> entry : settings.entrySet()) {
 				writer.write(entry.getKey() + "=" + entry.getValue() + System.lineSeparator());
 			}
