@@ -1,4 +1,4 @@
-package tech.avahe;
+package tech.avahe.ui;
 
 import javax.swing.*;
 
