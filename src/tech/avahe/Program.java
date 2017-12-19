@@ -19,16 +19,16 @@ public class Program {
 	 */
 	public Program() {
 		try {
-			// TODO: If the program cannot interact with the file system,
-			// Open a dialogue notifying the using, and use the default username for the session.
 			this.init();
 		} catch (IOException ex) {
 			ex.printStackTrace();
+			// TODO: If the program cannot interact with the file system,
+			// Open a dialogue notifying the using, and use the default username for the session.
 		}
 	}
 	
 	/**
-	 * 
+	 * Reads the user settings and configures 
 	 * @throws IOException
 	 */
 	private void init() throws IOException {
@@ -37,37 +37,27 @@ public class Program {
 			// Settings file doesn't exist; create the file.
 			settings = Settings.writeDefaultSettings();
 		}
-		final String usernameKey = Settings.Keys.USERNAME.getName();
 		// Iterate through settings, to find the username.
-		for (final Map.Entry<String, String> entry : settings.entrySet()) {
-			final String key = entry.getKey();
-			if (key.equals(usernameKey)) {
-				// Username found in settings file.
-				this.username = entry.getValue();
-				break;
-			}
+		final String storedUsername = settings.get(Settings.Keys.USERNAME.getName());
+		if (storedUsername == null) {
+			// Settings exist, but there is no username entry.
+			this.username = Settings.Keys.USERNAME.getDefaultValue();
 		}
-		// Settings exist, but there is no username entry.
-		if (this.username == null) {
-			this.username = System.getProperty("user.name");
-			Settings.updateSetting(Settings.Keys.USERNAME.getName(), Settings.Keys.USERNAME.getDefaultValue());
-		}
-
 		// TODO: Configure connections and GUI.
 	}
 	
 	/**
-	 * 
-	 * @return
+	 * @return The client's username.
 	 */
 	public String getUsername() {
 		return this.username;
 	}
 	
 	/**
-	 * 
-	 * @param name
-	 * @return
+	 * Sets the client's username.
+	 * @param name The client's new username.
+	 * @return If the username was changed.
+	 * This will return false if the parameterized name was the same as the current username.
 	 */
 	public boolean setUsername(final String name) {
 		// TODO: Attempt to save username to config file.
