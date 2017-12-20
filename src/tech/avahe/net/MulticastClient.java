@@ -2,6 +2,8 @@ package tech.avahe.net;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Consumer;
@@ -15,8 +17,8 @@ public class MulticastClient extends MulticastSocket {
 	private final CopyOnWriteArraySet<Consumer<DatagramPacket>> packetListeners;
 	
     /**
-     * Creates a new multicast client which is automatically bound to the port.
-     * @param port The port to bind to.
+     * Creates a new multicast client which is automatically bound to the port number.
+     * @param port The port number to bind to.
      * @throws IOException Thrown if an I/O exception occurs
      * while creating the MulticastSocket.
      */
@@ -50,6 +52,17 @@ public class MulticastClient extends MulticastSocket {
     	}
     	this.receiveThread.start();
     	return true;
+    }
+    
+    /**
+     * Sends a <code>DatagramPacket</code> from the locally connected socket.
+     * @param message The message to send.
+     * @param group The group to send the message to.
+     * @throws IOException Thrown if there is an error sending the message (see {@link DatagramSocket#send(DatagramPacket)}).
+     */
+    public void send(final String message, final InetAddress group) throws IOException {
+    	final byte[] buffer = message.getBytes();
+		super.send(new DatagramPacket(buffer, buffer.length, group, this.getLocalPort()));
     }
     
     @Override
