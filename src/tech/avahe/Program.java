@@ -19,6 +19,7 @@ public class Program {
 	 */
 	public Program() {
 		try {
+			// TODO: Ensure the MulticastClient's loopback mode is set to false.
 			this.init();
 		} catch (IOException ex) {
 			ex.printStackTrace();
