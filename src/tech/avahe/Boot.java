@@ -12,7 +12,8 @@ public class Boot {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		final Program program = new Program();
+		// TODO: Launch command line or gui version based on arguments.
+		final FileTransfer program = new FileTransfer();
 	}
 	
 }

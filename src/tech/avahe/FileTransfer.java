@@ -10,14 +10,14 @@ import tech.avahe.common.Settings;
  * @author Avahe
  *
  */
-public class Program {
+public class FileTransfer {
 
 	private String username;
 	
 	/**
-	 * @throws IOException 
+	 * 
 	 */
-	public Program() {
+	public FileTransfer() {
 		try {
 			// TODO: Ensure the MulticastClient's loopback mode is set to false.
 			this.init();
