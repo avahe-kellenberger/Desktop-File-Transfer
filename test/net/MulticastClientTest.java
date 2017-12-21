@@ -19,14 +19,19 @@ public class MulticastClientTest {
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) {
-		new MulticastClientTest();
+		try {
+			new MulticastClientTest();
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
 	}
 
 	/**
 	 * Starts the tests for MulticastClient.java.
+	 * @throws Exception 
 	 * @throws IOException 
 	 */
-	private MulticastClientTest() {
+	private MulticastClientTest() throws Exception {
 		final StringBuilder report = new StringBuilder();
 		report.append("Initializing the test clients...");
 		report.append(System.lineSeparator());
@@ -35,8 +40,9 @@ public class MulticastClientTest {
 			// Initialize the test clients.
 			final MulticastClient clientA = new MulticastClient();
 			final MulticastClient clientB = new MulticastClient();
-			clientA.listen();
-			clientB.listen();
+			if (!clientA.listen() || !clientB.listen()) {
+				throw new Exception("Clients failed to start listening; aborting tests.");
+			}
 			
 			// Run the test suite.
 			report.append("Checking for basic connectivity (sending/receiving messages)");
@@ -63,14 +69,28 @@ public class MulticastClientTest {
 	 * @return If the connectivity test passed.
 	 */
 	private boolean checkConnectivity(final MulticastClient clientA, final MulticastClient clientB) {
-		final ArrayList<String> received = new ArrayList<>(1);
+		final ArrayList<String> received = new ArrayList<>(3);
 		clientB.addPacketListener(packet -> {
-			received.add("Client B: " + new String(packet.getData(), 0, packet.getLength()));
-			this.setSignal();
+			if (!received.isEmpty()) {
+				this.setSignal();
+			}
+			received.add(new String(packet.getData(), 0, packet.getLength()));
 		});
 		
+		final String[] messages = { "Message 0", "Message 1", "Message 2" };
+		
 		try {
-			clientA.send("Hello world!");
+			clientA.send(messages[0]);
+			if (!clientB.stopListening()) {
+				System.err.println("Client B failed to stop listening.");
+				return false;
+			}
+			clientA.send(messages[1]);
+			if (!clientB.listen()) {
+				System.err.println("Client B failed to start listening.");
+				return false;
+			}
+			clientA.send(messages[2]);
 			this.waitForSignal();
 		} catch (IOException ex) {
 			ex.printStackTrace();
@@ -80,8 +100,7 @@ public class MulticastClientTest {
 		} finally {
 			this.signaled = false;
 		}
-		
-		return received.contains("Client B: Hello world!");
+		return received.contains(messages[0]) && received.contains(messages[2]) && !received.contains(messages[1]);
 	}
 	
 	/**
