@@ -5,33 +5,57 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.net.UnknownHostException;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Consumer;
+
 
 /**
  * @author Avahe
  */
-public class MulticastClient extends MulticastSocket {
+public class MulticastClient {
 
+	private static final String GROUP_ADDRESS = "224.0.0.17";
+	private static final int PORT = 7899;
+	private static final InetAddress INET_ADDRESS;
+	
+	static {
+		InetAddress tempAddress = null;
+		try {
+			tempAddress = InetAddress.getByName(MulticastClient.GROUP_ADDRESS);
+		} catch (UnknownHostException ex) {
+			// If the host cannot be resolved, exit the program, as multicasting will not be accessible.
+			ex.printStackTrace();
+			System.exit(-1);
+		}
+		INET_ADDRESS = tempAddress;
+	}
+	
+	private final MulticastSocket multicastSocket;
 	private final Thread receiveThread;
 	private final CopyOnWriteArraySet<Consumer<DatagramPacket>> packetListeners;
 	
     /**
-     * Creates a new multicast client which is automatically bound to the port number.
-     * @param port The port number to bind to.
-     * @throws IOException Thrown if an I/O exception occurs
-     * while creating the MulticastSocket.
+     * Creates a new multicast client, which automatically joins 
+     * the multicast group {@value MulticastClient#PORT} and binds to port {@link MulticastClient#GROUP_ADDRESS}.
+     * @throws IOException Thrown if an I/O exception occurs while creating the underlying MulticastSocket.
      */
-    public MulticastClient(final int port) throws IOException {
-    	super(port);
+    public MulticastClient() throws IOException {
+    	this.multicastSocket = new MulticastSocket(MulticastClient.PORT);
+    	this.multicastSocket.joinGroup(InetAddress.getByName(MulticastClient.GROUP_ADDRESS));
     	this.packetListeners = new CopyOnWriteArraySet<>();
     	
     	// Listens for packets while the socket is open.
     	this.receiveThread = new Thread(() -> {
-    		while(!this.isClosed()) {
+    		while(!this.multicastSocket.isClosed()) {
     			final byte[] buffer = new byte[4096];
     			try {
-					this.receive(new DatagramPacket(buffer, buffer.length));
+					final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+					this.multicastSocket.receive(packet);
+			    	// Notify the listeners of the incoming packet.
+			    	this.packetListeners.forEach(listener -> {
+			    		listener.accept(packet);
+			    	});
 				} catch (IOException ex) {
 					// Silently ignore the exception, 
 					// as the loop will exit if the connection drops.
@@ -40,10 +64,10 @@ public class MulticastClient extends MulticastSocket {
     		// The socket has been closed, and cannot be reopened.
     	});
     }
-
+    
     /**
      * Tells the client to start listening for incoming packets.
-     * @return If the client has started listening after this method call.
+     * @return If the client has started listening after this method call.port
      * This method will return false if it was already listening for packets.
      */
     public boolean listen() {
@@ -60,18 +84,22 @@ public class MulticastClient extends MulticastSocket {
      * @param group The group to send the message to.
      * @throws IOException Thrown if there is an error sending the message (see {@link DatagramSocket#send(DatagramPacket)}).
      */
-    public void send(final String message, final InetAddress group) throws IOException {
+    public void send(final String message) throws IOException {
     	final byte[] buffer = message.getBytes();
-		super.send(new DatagramPacket(buffer, buffer.length, group, this.getLocalPort()));
+		this.multicastSocket.send(new DatagramPacket(buffer, buffer.length, MulticastClient.INET_ADDRESS, MulticastClient.PORT));
     }
     
-    @Override
-    public void receive(final DatagramPacket packet) throws IOException {
-    	super.receive(packet);
-    	// Notify the listeners of the incoming packet.
-    	this.packetListeners.forEach(listener -> {
-    		listener.accept(packet);
-    	});
+    /**
+     * Closes the client's connection.
+     * @return If the client was closed successfully.
+     * This method will return false if the client was closed prior to this method being called.
+     */
+    public boolean close() {
+    	if (this.multicastSocket.isClosed()) {
+    		return false;
+    	}
+    	this.multicastSocket.close();
+		return true;
     }
     
     /**

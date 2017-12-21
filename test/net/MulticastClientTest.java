@@ -1,8 +1,6 @@
 package net;
 
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
 import java.util.ArrayList;
 
 import tech.avahe.filetransfer.net.MulticastClient;
@@ -35,21 +33,16 @@ public class MulticastClientTest {
 		
 		try {
 			// Initialize the test clients.
-			final int port = 7899;
-			final MulticastClient clientA = new MulticastClient(port);
-			final MulticastClient clientB = new MulticastClient(port);
-			final InetAddress group = InetAddress.getByName("224.0.0.1");
-			clientA.joinGroup(group);
-			clientB.joinGroup(group);
+			final MulticastClient clientA = new MulticastClient();
+			final MulticastClient clientB = new MulticastClient();
 			clientA.listen();
 			clientB.listen();
-			
 			
 			// Run the test suite.
 			report.append("Checking for basic connectivity (sending/receiving messages)");
 			report.append(System.lineSeparator());
 			report.append("\tPassed: ");
-			report.append(this.checkConnectivity(clientA, clientB, group, port));
+			report.append(this.checkConnectivity(clientA, clientB));
 			report.append(System.lineSeparator());
 			
 			
@@ -67,34 +60,27 @@ public class MulticastClientTest {
 	 * Tests sending and receiving <code>DatagramPackets</code> via <code>MulticastClient</code>.
 	 * @param clientA A multicast client.
 	 * @param clientB Another multicast client.
-	 * @param group The group that both clients are part of.
-	 * @param port The port to which both clients are connected.
 	 * @return If the connectivity test passed.
 	 */
-	private boolean checkConnectivity(final MulticastClient clientA, final MulticastClient clientB, final InetAddress group, final int port) {
-		final ArrayList<String> received = new ArrayList<>(2);
-		
+	private boolean checkConnectivity(final MulticastClient clientA, final MulticastClient clientB) {
+		final ArrayList<String> received = new ArrayList<>(1);
 		clientB.addPacketListener(packet -> {
 			received.add("Client B: " + new String(packet.getData(), 0, packet.getLength()));
 			this.setSignal();
 		});
 		
-		final String message = "Hello world!";
-		final byte[] buffer = message.getBytes();
-		final DatagramPacket packet = new DatagramPacket(buffer, buffer.length, group, port);
 		try {
-			clientA.send(packet);
+			clientA.send("Hello world!");
+			this.waitForSignal();
 		} catch (IOException ex) {
 			ex.printStackTrace();
 			return false;
-		}
-		
-		try {
-			this.waitForSignal();
 		} catch (InterruptedException ex) {
 			ex.printStackTrace();
+		} finally {
+			this.signaled = false;
 		}
-		this.signaled = false;
+		
 		return received.contains("Client B: Hello world!");
 	}
 	
