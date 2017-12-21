@@ -1,50 +1,80 @@
 package tech.avahe;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import tech.avahe.common.Settings;
+import tech.avahe.common.Settings.Keys;
 
 /**
  * 
  * @author Avahe
  *
  */
-public class FileTransfer {
+public abstract class FileTransfer {
 
 	private String username;
 	
 	/**
+	 * Creates the basic application needs for transferring files.
 	 * 
+	 * Creating this class automatically calls {@link FileTransfer#loadSettings()}, which passes on
+	 * control of loading settings to {@link FileTransfer#onSettingsLoaded(Map)} which all base classes must implement.
+	 * 
+	 * An internal <code>MulticastClient</code> is used for Local Area Network peer discovery,
+	 * and uses TCP for transferring files from one client to another.
 	 */
 	public FileTransfer() {
-		try {
-			// TODO: Ensure the MulticastClient's loopback mode is set to false.
-			this.init();
-		} catch (IOException ex) {
-			ex.printStackTrace();
-			// TODO: If the program cannot interact with the file system,
-			// Open a dialogue notifying the using, and use the default username for the session.
-		}
+		// TODO: Check if multicasting is allowed on this interface, and throw an exception if it is not.
+		// TODO: Ensure the MulticastClient's loopback mode is set to false.
+		this.loadSettings();
 	}
 	
 	/**
-	 * Reads the user settings and configures 
-	 * @throws IOException
+	 * Handles the user settings once they are loaded.
+	 * This method is called after the settings are loaded/configured by {@link FileTransfer#loadSettings()}.
+	 * @param settings The loaded user settings.
 	 */
-	private void init() throws IOException {
-		Map<String, String> settings = Settings.getSettings();
-		if (settings == null) {
-			// Settings file doesn't exist; create the file.
-			settings = Settings.writeDefaultSettings();
+	public abstract void onSettingsLoaded(final Map<String, String> settings);
+	
+	/**
+	 * Loads the user settings from the configuration file.
+	 * If the settings do not exist or any members are missing,
+	 * the default settings will be written to the configuration file.
+	 * 
+	 * Note: Once this method finishes, it will invoke {@link FileTransfer#onSettingsLoaded(Map)}.
+	 * 
+	 * @throws IOException Thrown if the configuration file cannot be read from or written to.
+	 */
+	protected void loadSettings() {
+		Map<String, String> settings = null;
+		try {
+			settings = Settings.getSettings();
+			if (settings != null) {
+				// Check for missing settings.
+				final Map<String, String> missingSettings = new LinkedHashMap<String, String>();
+				for (final Keys key : Settings.Keys.values()) {
+					final String keyName = key.getName();
+					 if (!settings.containsKey(keyName)) {
+						 missingSettings.put(keyName, key.getDefaultValue());
+					 }
+				}
+				// If any settings are missing, add the defaults to the settings file.
+				if (missingSettings.size() > 0) {
+					settings.putAll(missingSettings);
+					Settings.writeSettings(settings);
+				}
+			} else {
+				// Create the config file with default settings if it doesn't exist.
+				settings = Settings.writeDefaultSettings();
+			}
+		} catch (IOException ex) {
+			// Silently ignore the exception if the file is not accessible.
+			// The settings will be passed as null.
+			ex.printStackTrace();
 		}
-		// Iterate through settings, to find the username.
-		final String storedUsername = settings.get(Settings.Keys.USERNAME.getName());
-		if (storedUsername == null) {
-			// Settings exist, but there is no username entry.
-			this.username = Settings.Keys.USERNAME.getDefaultValue();
-		}
-		// TODO: Configure connections and GUI.
+		this.onSettingsLoaded(settings);
 	}
 	
 	/**

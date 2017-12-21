@@ -61,14 +61,27 @@ public class Settings {
 	}
 	
 	/**
-	 * @return The default configuration map.
+	 * The default configuration file settings.
 	 */
-	public static Map<String, String> getDefaultSettings() {
-		final LinkedHashMap<String, String> settings = new LinkedHashMap<>();
+	public static final Map<String, String> DEFAULT_SETTINGS = new LinkedHashMap<String, String>();
+	
+	/**
+	 * Loads the default settings.
+	 */
+	static {
 		for (final Keys key : Keys.values()) {
-			settings.put(key.getName(), key.getDefaultValue());
+			Settings.DEFAULT_SETTINGS.put(key.getName(), key.getDefaultValue());
 		}
-		return settings;
+	}
+	
+	/**
+	 * Attempts to create the configuration file and all its parent directories.
+	 * This method does not check if the file already exists.
+	 * @throws IOException Thrown if the file or its parent directories could not be created.
+	 */
+	public static void createConfigFile() throws IOException {
+		Environment.CONFIG_FILE.getParentFile().mkdirs();
+		Environment.CONFIG_FILE.createNewFile();
 	}
 	
 	/**
@@ -77,7 +90,7 @@ public class Settings {
 	 * @throws IOException Thrown if the config file cannot be written to.
 	 */
 	public static Map<String, String> writeDefaultSettings() throws IOException {
-		final Map<String, String> settings = Settings.getDefaultSettings();
+		final Map<String, String> settings = Settings.DEFAULT_SETTINGS;
 		Settings.writeSettings(settings);
 		return settings;
 	}
@@ -88,18 +101,18 @@ public class Settings {
 	 * @throws IOException Thrown if the file exists but cannot be read from.
 	 */
 	public static Map<String, String> getSettings() throws IOException {
-		if (Environment.CONFIG_FILE.exists()) {
-			try (final BufferedReader reader = new BufferedReader(new FileReader(Environment.CONFIG_FILE))) {
-				final LinkedHashMap<String, String> settings = new LinkedHashMap<>();
-				String line;
-				while ((line = reader.readLine()) != null) {
-					final String[] split = line.split("=");
-					settings.put(split[0], split[1]);
-				}
-				return settings;
-			}
+		if (!Environment.CONFIG_FILE.exists()) {
+			return null;
 		}
-		return null;
+		try (final BufferedReader reader = new BufferedReader(new FileReader(Environment.CONFIG_FILE))) {
+			final LinkedHashMap<String, String> settings = new LinkedHashMap<>();
+			String line;
+			while ((line = reader.readLine()) != null) {
+				final String[] split = line.split("=");
+				settings.put(split[0], split[1]);
+			}
+			return settings;
+		}
 	}
 	
 	/**
@@ -140,6 +153,9 @@ public class Settings {
 	 * @throws IOException Thrown if the file cannot be written to.
 	 */
 	public static void writeSettings(final Map<String, String> settings) throws IOException {
+		if (!Environment.CONFIG_FILE.exists()) {
+			Settings.createConfigFile();
+		}
 		try (final BufferedWriter writer = new BufferedWriter(new FileWriter(Environment.CONFIG_FILE))) {
 			for (final Map.Entry<String, String> entry : settings.entrySet()) {
 				writer.write(entry.getKey() + "=" + entry.getValue() + System.lineSeparator());
