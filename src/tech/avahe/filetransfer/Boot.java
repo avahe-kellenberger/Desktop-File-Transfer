@@ -1,4 +1,4 @@
-package tech.avahe;
+package tech.avahe.filetransfer;
 
 import java.util.Map;
 

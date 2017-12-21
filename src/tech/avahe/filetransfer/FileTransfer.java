@@ -1,11 +1,11 @@
-package tech.avahe;
+package tech.avahe.filetransfer;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import tech.avahe.common.Settings;
-import tech.avahe.common.Settings.Keys;
+import tech.avahe.filetransfer.common.Settings;
+import tech.avahe.filetransfer.common.Settings.Keys;
 
 /**
  * 

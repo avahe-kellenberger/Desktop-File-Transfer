@@ -1,4 +1,4 @@
-package tech.avahe.ui;
+package tech.avahe.filetransfer.ui;
 
 import javax.swing.*;
 

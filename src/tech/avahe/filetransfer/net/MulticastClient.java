@@ -1,4 +1,4 @@
-package tech.avahe.net;
+package tech.avahe.filetransfer.net;
 
 import java.io.IOException;
 import java.net.DatagramPacket;

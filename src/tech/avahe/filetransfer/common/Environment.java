@@ -1,4 +1,4 @@
-package tech.avahe.common;
+package tech.avahe.filetransfer.common;
 
 import java.io.File;
 
