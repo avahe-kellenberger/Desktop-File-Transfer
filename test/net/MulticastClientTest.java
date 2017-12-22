@@ -11,12 +11,9 @@ import tech.avahe.filetransfer.net.MulticastClient;
  * Tests the MulticastClient class.
  */
 public class MulticastClientTest {
-
-	private boolean signaled = false;
 	
 	/**
 	 * Creates the test class.
-	 * @throws IOException 
 	 */
 	public static void main(String[] args) {
 		try {
@@ -28,18 +25,19 @@ public class MulticastClientTest {
 
 	/**
 	 * Starts the tests for MulticastClient.java.
-	 * @throws Exception 
-	 * @throws IOException 
+	 * @throws Exception Thrown if the conditions to test the class cannot be met.
 	 */
 	private MulticastClientTest() throws Exception {
 		final StringBuilder report = new StringBuilder();
 		report.append("Initializing the test clients...");
 		report.append(System.lineSeparator());
 		
+		MulticastClient clientA = null, clientB = null;
+		
 		try {
 			// Initialize the test clients.
-			final MulticastClient clientA = new MulticastClient();
-			final MulticastClient clientB = new MulticastClient();
+			clientA = new MulticastClient();
+			clientB = new MulticastClient();
 			if (!clientA.listen() || !clientB.listen()) {
 				throw new Exception("Clients failed to start listening; aborting tests.");
 			}
@@ -52,12 +50,14 @@ public class MulticastClientTest {
 			report.append(System.lineSeparator());
 			
 			
-			// Close the client connections after the tests have finished.
-			clientA.close();
-			clientB.close();
 		} catch (IOException ex) {
 			ex.printStackTrace();
 		} finally {
+			if (clientA != null && clientB != null) {
+				// Close the client connections after the tests have finished.
+				clientA.close();
+				clientB.close();
+			}
 			System.out.println(report.toString());
 		}
 	}
@@ -69,57 +69,55 @@ public class MulticastClientTest {
 	 * @return If the connectivity test passed.
 	 */
 	private boolean checkConnectivity(final MulticastClient clientA, final MulticastClient clientB) {
+		final Signal signal = new Signal();
 		final ArrayList<String> received = new ArrayList<>(3);
+
+		// Listen for incoming packets.
 		clientB.addPacketListener(packet -> {
-			if (!received.isEmpty()) {
-				this.setSignal();
-			}
 			received.add(new String(packet.getData(), 0, packet.getLength()));
+			signal.set();
 		});
 		
 		final String[] messages = { "Message 0", "Message 1", "Message 2" };
 		
 		try {
+
+			// Send a message and check if it is received.
 			clientA.send(messages[0]);
+			signal.waitForTimeout(5000);
+			if (!received.contains(messages[0])) {
+				System.err.println("Client B failed to receive a message (5 second timeout).");
+				return false;
+			}
+
+			// Stop the client from listening, and make sure it doesn't receive a message.
 			if (!clientB.stopListening()) {
 				System.err.println("Client B failed to stop listening.");
 				return false;
 			}
 			clientA.send(messages[1]);
+			signal.waitForTimeout(1000);
+			if (received.contains(messages[1])) {
+				System.err.println("Client B received a message when it shouldn't have.");
+				return false;
+			}
+
+			// Start listening for messages again, and check to see if it still receives a message.
 			if (!clientB.listen()) {
 				System.err.println("Client B failed to start listening.");
 				return false;
 			}
 			clientA.send(messages[2]);
-			this.waitForSignal();
-		} catch (IOException ex) {
+			signal.waitForTimeout(5000);
+			if (!received.contains(messages[2])) {
+				System.err.println("Client B didn't receive a message after listening was re-enabled.");
+				return false;
+			}
+		} catch (IOException | InterruptedException ex) {
 			ex.printStackTrace();
 			return false;
-		} catch (InterruptedException ex) {
-			ex.printStackTrace();
-		} finally {
-			this.signaled = false;
 		}
-		return received.contains(messages[0]) && received.contains(messages[2]) && !received.contains(messages[1]);
-	}
-	
-	/**
-	 * Notifies the <code>signaled</code> boolean to be set to true,
-	 * and notifies all threads waiting on the object.
-	 */
-	private synchronized void setSignal() {
-		signaled = true;
-        notifyAll();
-    }
-	
-	/**
-	 * Blocks the current thread until the <code>signaled</code> boolean is set to true.
-	 * @throws InterruptedException See {@link Object#wait()}.
-	 */
-	private synchronized void waitForSignal() throws InterruptedException {
-		while (!this.signaled) {
-			wait();
-		}
+		return true;
 	}
 	
 }

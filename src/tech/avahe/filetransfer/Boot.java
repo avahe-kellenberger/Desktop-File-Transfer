@@ -1,5 +1,6 @@
 package tech.avahe.filetransfer;
 
+import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -15,18 +16,22 @@ public class Boot {
 	 */
 	public static void main(String[] args) {
 		// TODO: Launch command line or gui version based on arguments.
-		final FileTransfer program = new FileTransfer() {
-			@Override
-			public void onSettingsLoaded(Map<String, String> settings) {
-				if (settings != null) {
-					for (final String key : settings.keySet()) {
-						System.out.println(key + "=" + settings.get(key));
+		try {
+			final FileTransfer program = new FileTransfer() {
+				@Override
+				public void onSettingsLoaded(Map<String, String> settings) {
+					if (settings != null) {
+						for (final String key : settings.keySet()) {
+							System.out.println(key + "=" + settings.get(key));
+						}
+					} else {
+						System.out.println("Null settings.");
 					}
-				} else {
-					System.out.println("Null settings.");
 				}
-			}
-		};
+			};
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
 	}
 	
 }

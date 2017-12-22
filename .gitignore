@@ -1,6 +1,5 @@
-
-.idea/
-Desktop File Transfer.iml
+/.idea
+/Desktop-File-Transfer.iml
 /.project
 /.classpath
-/bin/
+/bin

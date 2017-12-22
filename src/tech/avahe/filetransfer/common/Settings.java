@@ -63,11 +63,9 @@ public class Settings {
 	/**
 	 * The default configuration file settings.
 	 */
-	public static final Map<String, String> DEFAULT_SETTINGS = new LinkedHashMap<String, String>();
+	public static final Map<String, String> DEFAULT_SETTINGS = new LinkedHashMap<>();
 	
-	/**
-	 * Loads the default settings.
-	 */
+	// Loads the default settings.
 	static {
 		for (final Keys key : Keys.values()) {
 			Settings.DEFAULT_SETTINGS.put(key.getName(), key.getDefaultValue());
@@ -77,11 +75,11 @@ public class Settings {
 	/**
 	 * Attempts to create the configuration file and all its parent directories.
 	 * This method does not check if the file already exists.
+	 * @return If the config file or any of its parent directories were created.
 	 * @throws IOException Thrown if the file or its parent directories could not be created.
 	 */
-	public static void createConfigFile() throws IOException {
-		Environment.CONFIG_FILE.getParentFile().mkdirs();
-		Environment.CONFIG_FILE.createNewFile();
+	public static boolean createConfigFile() throws IOException {
+		return Environment.CONFIG_FILE.getParentFile().mkdirs() || Environment.CONFIG_FILE.createNewFile();
 	}
 	
 	/**
@@ -139,7 +137,8 @@ public class Settings {
 	
 	/**
 	 * Updates the current settings file with the a singular updated setting.
-	 * @param updatedSetting The setting to update or add to the settings file.
+	 * @param key The key of the setting to update.
+	 * @param value The value of the setting to update.
 	 * @return The settings after being updated.
 	 * @throws IOException Thrown if the config file cannot be written to.
 	 */

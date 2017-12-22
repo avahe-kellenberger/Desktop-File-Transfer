@@ -6,6 +6,7 @@ import java.util.Map;
 
 import tech.avahe.filetransfer.common.Settings;
 import tech.avahe.filetransfer.common.Settings.Keys;
+import tech.avahe.filetransfer.net.MulticastClient;
 
 /**
  * 
@@ -16,6 +17,8 @@ public abstract class FileTransfer {
 
 	private String username;
 	
+	private final MulticastClient multicastClient;
+	
 	/**
 	 * Creates the basic application needs for transferring files.
 	 * 
@@ -24,10 +27,18 @@ public abstract class FileTransfer {
 	 * 
 	 * An internal <code>MulticastClient</code> is used for Local Area Network peer discovery,
 	 * and uses TCP for transferring files from one client to another.
+	 * 
+	 * @throws IOException Thrown if the underlying MulticastSocket cannot be created,
+	 * or if there is an exception when disabling its loopback mode. 
+	 *
+	 * @see MulticastClient#MulticastClient()
+	 * @see MulticastClient#setLoopbackMode(boolean)
 	 */
-	public FileTransfer() {
-		// TODO: Check if multicasting is allowed on this interface, and throw an exception if it is not.
-		// TODO: Ensure the MulticastClient's loopback mode is set to false.
+	public FileTransfer() throws IOException {
+		this.multicastClient = new MulticastClient();
+		// Ensure the MulticastClient's loopback mode is set to false,
+		// so that the program will not receive its own messages as an external program on the network.
+		this.multicastClient.setLoopbackMode(true);
 		this.loadSettings();
 	}
 	
@@ -90,13 +101,21 @@ public abstract class FileTransfer {
 	 * @return If the username was changed.
 	 * This will return false if the parameterized name was the same as the current username.
 	 */
-	public boolean setUsername(final String name) {
+	public boolean setUsername(final String name) throws IOException {
 		// TODO: Attempt to save username to config file.
 		if (!this.username.equals(name)) {
 			this.username = name;
 			return true;
 		}
 		return false;
+	}
+	
+	/**
+	 * Attempts to save the current username to the configuration file.
+	 * @throws IOException Thrown f the username could not be saved to the configuration file.
+	 */
+	public void saveUsername() throws IOException {
+		Settings.updateSetting(Settings.Keys.USERNAME.getName(), this.username);
 	}
 	
 }
