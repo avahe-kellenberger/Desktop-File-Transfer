@@ -1,12 +1,12 @@
 package tech.avahe.filetransfer;
 
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import tech.avahe.filetransfer.common.Settings;
 import tech.avahe.filetransfer.common.Settings.Keys;
 import tech.avahe.filetransfer.net.MulticastClient;
+
+import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * 
@@ -41,7 +41,7 @@ public abstract class FileTransfer {
 		this.multicastClient.setLoopbackMode(true);
 		this.loadSettings();
 	}
-	
+
 	/**
 	 * Handles the user settings once they are loaded.
 	 * This method is called after the settings are loaded/configured by {@link FileTransfer#loadSettings()}.
@@ -102,7 +102,6 @@ public abstract class FileTransfer {
 	 * This will return false if the parameterized name was the same as the current username.
 	 */
 	public boolean setUsername(final String name) throws IOException {
-		// TODO: Attempt to save username to config file.
 		if (!this.username.equals(name)) {
 			this.username = name;
 			return true;
@@ -114,7 +113,7 @@ public abstract class FileTransfer {
 	 * Attempts to save the current username to the configuration file.
 	 * @throws IOException Thrown f the username could not be saved to the configuration file.
 	 */
-	public void saveUsername() throws IOException {
+	public final void saveUsername() throws IOException {
 		Settings.updateSetting(Settings.Keys.USERNAME.getName(), this.username);
 	}
 	

@@ -28,7 +28,7 @@ public class MulticastClient {
 	}
 
 	private final MulticastSocket multicastSocket;
-	private final CopyOnWriteArraySet<Consumer<DatagramPacket>> packetListeners;
+	private final CopyOnWriteArraySet<Consumer<String>> messageListeners;
 
 	private final Object receiveThreadLock = new Object();
 	private Thread receiveThread;
@@ -39,9 +39,9 @@ public class MulticastClient {
      * @throws IOException Thrown if an I/O exception occurs while creating the underlying MulticastSocket.
      */
     public MulticastClient() throws IOException {
+		this.messageListeners = new CopyOnWriteArraySet<>();
 		this.multicastSocket = new MulticastSocket(MulticastClient.PORT);
 		this.multicastSocket.joinGroup(InetAddress.getByName(MulticastClient.GROUP_ADDRESS));
-    	this.packetListeners = new CopyOnWriteArraySet<>();
     }
 
     /*
@@ -71,8 +71,8 @@ public class MulticastClient {
 	 */
 	private void receive() {
 		try {
-			boolean isReceiveThread = true;
-			while (isReceiveThread) {
+			boolean isReceiveThread;
+			do {
 				final byte[] buffer = new byte[4096];
 				final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 				this.multicastSocket.receive(packet);
@@ -82,10 +82,12 @@ public class MulticastClient {
 					isReceiveThread = this.receiveThread != null;
 				}
 				if (isReceiveThread) {
-					// Notify the listeners of the incoming packet.
-					this.packetListeners.forEach(listener -> listener.accept(packet));
+					// Notify the listeners of the incoming message.
+					final byte[] data = packet.getData();
+					final String message = new String(data, 0, packet.getLength());
+					this.messageListeners.forEach(listener -> listener.accept(message));
 				}
-			}
+			} while (isReceiveThread);
 		} catch (IOException ex) {
 			// Silently ignore the exception,
 			// as the loop will exit if the connection drops.
@@ -110,9 +112,11 @@ public class MulticastClient {
     }
     
     /**
-     * Sends a <code>DatagramPacket</code> from the locally connected socket.
+     * Sends a message from the locally connected socket.
      * @param message The message to send.
-     * @throws IOException Thrown if there is an error sending the message (see {@link DatagramSocket#send(DatagramPacket)}).
+     * @throws IOException Thrown if there is an error sending the message.
+	 *
+	 * @see DatagramSocket#send(DatagramPacket)
      */
     public void send(final String message) throws IOException {
     	final byte[] buffer = message.getBytes();
@@ -132,7 +136,28 @@ public class MulticastClient {
 		}
 		return stoppedListening || closedMulticast;
     }
-    
+
+	/**
+	 * @return Whether the client is closed or not.
+	 * @see MulticastSocket#isClosed()
+	 */
+	public boolean isClosed() {
+    	return this.multicastSocket == null || this.multicastSocket.isClosed();
+	}
+
+	/**
+	 * @return If the client is not closed and is listening for incoming messages.
+	 * @see MulticastClient#isClosed()
+	 */
+	public boolean isListening() {
+		if (this.isClosed()) {
+			return false;
+		}
+		synchronized (this.receiveThreadLock) {
+			return this.receiveThread != null && this.receiveThread.isAlive() && !this.receiveThread.isInterrupted();
+		}
+	}
+
     /**
      * Disables or enables datagrams from looping back to the local socket.
      * @param disable If the loopback mode should be disabled.
@@ -150,28 +175,28 @@ public class MulticastClient {
      * @return If the listener was added successfully.
      * This method will return false if the listener existed before this method was called.
      */
-    public boolean addPacketListener(final Consumer<DatagramPacket> listener) {
-    	return this.packetListeners.add(listener);
+    public boolean addMessageListener(final Consumer<String> listener) {
+    	return this.messageListeners.add(listener);
     }
     
     /**
-     * Checks if a packet listener has been added to the client.
-     * @param listener The packet listener.
-     * @return If the client contains the packet listener.
+     * Checks if a message listener has been added to the client.
+     * @param listener The listener to check for.
+     * @return If the client contains the listener.
      * This method will return true if the listener existed before this method was called.
      */
-    public boolean containsPacketListener(final Consumer<DatagramPacket> listener) {
-    	return this.packetListeners.contains(listener);
+    public boolean containsMessageListener(final Consumer<String> listener) {
+    	return this.messageListeners.contains(listener);
     }
     
     /**
-     * Removes a packet listener from the client.
+     * Removes a message listener from the client.
      * @param listener The listener to remove.
      * @return If the listener was removed successfully.
      * This method will return false if the listener did not exist before this method was called.
      */
-    public boolean removePacketListener(final Consumer<DatagramPacket> listener) {
-    	return this.packetListeners.remove(listener);
+    public boolean removeMessageListener(final Consumer<String> listener) {
+    	return this.messageListeners.remove(listener);
     }
     
 }

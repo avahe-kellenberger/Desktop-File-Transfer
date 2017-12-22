@@ -38,10 +38,15 @@ public class MulticastClientTest {
 			// Initialize the test clients.
 			clientA = new MulticastClient();
 			clientB = new MulticastClient();
+
+			if (clientA.isClosed() || clientB.isClosed()) {
+				throw new Exception("Clients were closed after being initialized; aborting tests.");
+			}
+
 			if (!clientA.listen() || !clientB.listen()) {
 				throw new Exception("Clients failed to start listening; aborting tests.");
 			}
-			
+
 			// Run the test suite.
 			report.append("Checking for basic connectivity (sending/receiving messages)");
 			report.append(System.lineSeparator());
@@ -73,15 +78,14 @@ public class MulticastClientTest {
 		final ArrayList<String> received = new ArrayList<>(3);
 
 		// Listen for incoming packets.
-		clientB.addPacketListener(packet -> {
-			received.add(new String(packet.getData(), 0, packet.getLength()));
+		clientB.addMessageListener(message -> {
+			received.add(message);
 			signal.set();
 		});
 		
 		final String[] messages = { "Message 0", "Message 1", "Message 2" };
 		
 		try {
-
 			// Send a message and check if it is received.
 			clientA.send(messages[0]);
 			signal.waitForTimeout(5000);
