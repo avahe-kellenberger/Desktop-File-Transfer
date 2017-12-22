@@ -22,11 +22,11 @@ public abstract class FileTransfer {
 	/**
 	 * Creates the basic application needs for transferring files.
 	 * 
-	 * Creating this class automatically calls {@link FileTransfer#loadSettings()}, which passes on
-	 * control of loading settings to {@link FileTransfer#onSettingsLoaded(Map)} which all base classes must implement.
+	 * <p>Creating this class automatically calls {@link FileTransfer#loadSettings()}, which passes on
+	 * control of loading settings to {@link FileTransfer#onSettingsLoaded(Map)} which all base classes must implement.</p>
 	 * 
-	 * An internal <code>MulticastClient</code> is used for Local Area Network peer discovery,
-	 * and uses TCP for transferring files from one client to another.
+	 * <p>An internal <code>MulticastClient</code> is used for Local Area Network peer discovery,
+	 * and uses TCP for transferring files from one client to another.</p>
 	 * 
 	 * @throws IOException Thrown if the underlying MulticastSocket cannot be created,
 	 * or if there is an exception when disabling its loopback mode. 
@@ -39,7 +39,16 @@ public abstract class FileTransfer {
 		// Ensure the MulticastClient's loopback mode is set to false,
 		// so that the program will not receive its own messages as an external program on the network.
 		this.multicastClient.setLoopbackMode(true);
+		this.multicastClient.addMessageListener(this::messageListener);
 		this.loadSettings();
+	}
+
+	/**
+	 *
+	 * @param message
+	 */
+	private void messageListener(final String message) {
+		// TODO: Create system for handling peer discovery.
 	}
 
 	/**
@@ -54,9 +63,7 @@ public abstract class FileTransfer {
 	 * If the settings do not exist or any members are missing,
 	 * the default settings will be written to the configuration file.
 	 * 
-	 * Note: Once this method finishes, it will invoke {@link FileTransfer#onSettingsLoaded(Map)}.
-	 * 
-	 * @throws IOException Thrown if the configuration file cannot be read from or written to.
+	 * <p>Note: Once this method finishes, it will invoke {@link FileTransfer#onSettingsLoaded(Map)}.</p>
 	 */
 	protected void loadSettings() {
 		Map<String, String> settings = null;
@@ -101,7 +108,7 @@ public abstract class FileTransfer {
 	 * @return If the username was changed.
 	 * This will return false if the parameterized name was the same as the current username.
 	 */
-	public boolean setUsername(final String name) throws IOException {
+	public boolean setUsername(final String name) {
 		if (!this.username.equals(name)) {
 			this.username = name;
 			return true;

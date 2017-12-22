@@ -14,6 +14,7 @@ import javax.swing.JFrame;
 /**
  * 
  * @author Avahe
+ *
  * This class handles the reading and writing associated with the user settings (configuration file).
  * The config file is an *.ini file, using the key=value format, which each key on a new line.
  * 
@@ -74,7 +75,7 @@ public class Settings {
 	
 	/**
 	 * Attempts to create the configuration file and all its parent directories.
-	 * This method does not check if the file already exists.
+	 * <p>This method does not check if the file already exists.</p>
 	 * @return If the config file or any of its parent directories were created.
 	 * @throws IOException Thrown if the file or its parent directories could not be created.
 	 */
@@ -83,7 +84,7 @@ public class Settings {
 	}
 	
 	/**
-	 * Creates the default configuration file, as defined by Settings.Keys.
+	 * Creates the default configuration file, as defined by {@link Settings.Keys}.
 	 * @return Key/Value pairs of the file.
 	 * @throws IOException Thrown if the config file cannot be written to.
 	 */

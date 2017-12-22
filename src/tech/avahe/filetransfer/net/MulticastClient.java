@@ -96,9 +96,11 @@ public class MulticastClient {
     
     /**
      * Stops the client from listening to incoming packets.
+	 *
+	 * <p>This method will return false if the client was not listening for packets
+	 * prior to this method being called.</p>
+	 *
      * @return If the client successfully stopped listening.
-     * This method will return false if the client was not listening for packets 
-     * prior to this method being called.
      */
     public boolean stopListening() {
     	synchronized (this.receiveThreadLock) {
@@ -125,8 +127,8 @@ public class MulticastClient {
     
     /**
      * Closes the client's connection.
+	 * <p>This method will return false if the client was closed prior to this method being called.</p>
      * @return If the client was closed successfully.
-     * This method will return false if the client was closed prior to this method being called.
      */
     public boolean close() {
 		final boolean stoppedListening = this.stopListening();
@@ -171,9 +173,9 @@ public class MulticastClient {
     
     /**
      * Adds a listener to the client, which is notified when a packet is received.
+	 * <p>This method will return false if the listener existed before this method was called.</p>
      * @param listener The listener to add.
      * @return If the listener was added successfully.
-     * This method will return false if the listener existed before this method was called.
      */
     public boolean addMessageListener(final Consumer<String> listener) {
     	return this.messageListeners.add(listener);
@@ -181,9 +183,9 @@ public class MulticastClient {
     
     /**
      * Checks if a message listener has been added to the client.
+	 * <p>This method will return true if the listener existed before this method was called.</p>
      * @param listener The listener to check for.
      * @return If the client contains the listener.
-     * This method will return true if the listener existed before this method was called.
      */
     public boolean containsMessageListener(final Consumer<String> listener) {
     	return this.messageListeners.contains(listener);
@@ -191,9 +193,9 @@ public class MulticastClient {
     
     /**
      * Removes a message listener from the client.
+	 * <p>This method will return false if the listener did not exist before this method was called.</p>
      * @param listener The listener to remove.
      * @return If the listener was removed successfully.
-     * This method will return false if the listener did not exist before this method was called.
      */
     public boolean removeMessageListener(final Consumer<String> listener) {
     	return this.messageListeners.remove(listener);

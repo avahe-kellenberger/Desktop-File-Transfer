@@ -1,5 +1,10 @@
 package net;
 
+/**
+ *
+ * @author Avahe
+ *
+ */
 public class Signal {
 	
 	private boolean signaled = false;
