@@ -34,12 +34,12 @@ public class MulticastClient {
 	 * of incoming multicast messages.
 	 */
 	public enum MessageType {
-		SHARE_ID("id"),
-		REQUEST_ID("id-request"),
-		CHANGE_ID("id-change");
+		SHARE_ID((byte) 0),
+		REQUEST_ID((byte) 1),
+		CHANGE_ID((byte) 2);
 
 		public static final String DELIMITER = ":";
-		private final String identifier;
+		private final byte identifier;
 
 		/**
 		 * Used to send structured messages with given types, and to determine
@@ -51,14 +51,14 @@ public class MulticastClient {
 		 *
 		 * @param identifier The id used to determine the message type.
 		 */
-		MessageType(final String identifier) {
+		MessageType(final byte identifier) {
 			this.identifier = identifier;
 		}
 
 		/**
 		 * @return The identifier of the <code>MessageType</code>.
 		 */
-		public String getIdentifier() {
+		public byte getIdentifier() {
 			return this.identifier;
 		}
 
@@ -67,9 +67,9 @@ public class MulticastClient {
 		 * @param identifier The identifier of the <code>MessageType</code>.
 		 * @return The <code>MessageType</code> with the given identifier.
 		 */
-		public static MessageType getByName(final String identifier) {
+		public static MessageType getByIdentifier(final byte identifier) {
 			for (final MessageType type : MessageType.values()) {
-				if (type.getIdentifier().equals(identifier)) {
+				if (type.getIdentifier() == identifier) {
 					return type;
 				}
 			}
@@ -93,7 +93,11 @@ public class MulticastClient {
 				if (split.length == 1) {
 					return new Pair<>(null, message);
 				}
-				return new Pair<>(MessageType.getByName(split[0]), split[1]);
+				try {
+                    return new Pair<>(MessageType.getByIdentifier(Byte.parseByte(split[0])), split[1]);
+                } catch (NumberFormatException ex) {
+                    return new Pair<>(null, message);
+				}
 			}
 			return null;
 		}
