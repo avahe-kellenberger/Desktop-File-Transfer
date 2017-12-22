@@ -45,10 +45,13 @@ public abstract class FileTransfer {
 
 	/**
 	 *
-	 * @param message
+	 * @param message The incoming raw message.
 	 */
 	private void messageListener(final String message) {
 		// TODO: Create system for handling peer discovery.
+		// Pass on received messages to (abstract/protected) receive{MessageTypeName} methods.
+		// This needs to be created after the TCP client is structured, so IP addresses can be
+		// appropriately disseminated to all clients on the LAN.
 	}
 
 	/**
