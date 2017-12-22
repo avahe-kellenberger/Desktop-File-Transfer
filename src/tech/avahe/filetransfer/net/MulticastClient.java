@@ -1,40 +1,124 @@
 package tech.avahe.filetransfer.net;
 
+import javafx.util.Pair;
+
 import java.io.IOException;
 import java.net.*;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Consumer;
-
 
 /**
  * @author Avahe
  */
 public class MulticastClient {
 
-	private static final String GROUP_ADDRESS = "224.0.0.17";
-	private static final int PORT = 7899;
-	private static final InetAddress INET_ADDRESS;
+    private static final String GROUP_ADDRESS = "224.0.0.17";
+    private static final int PORT = 7899;
+    private static final InetAddress INET_ADDRESS;
 
-	static {
-		InetAddress tempAddress = null;
-		try {
-			tempAddress = InetAddress.getByName(MulticastClient.GROUP_ADDRESS);
-		} catch (UnknownHostException ex) {
-			// If the host cannot be resolved, exit the program, as multicasting will not be accessible.
-			ex.printStackTrace();
-			System.exit(-1);
+    // Initialize the InetAddress.
+    static {
+        InetAddress tempAddress = null;
+        try {
+            tempAddress = InetAddress.getByName(MulticastClient.GROUP_ADDRESS);
+        } catch (UnknownHostException ex) {
+            // If the host cannot be resolved, exit the program, as multicasting will not be accessible.
+            ex.printStackTrace();
+            System.exit(-1);
+        }
+        INET_ADDRESS = tempAddress;
+    }
+
+	/**
+	 * <code>MessageType</code> is used to determine the message types
+	 * of incoming multicast messages.
+	 */
+	public enum MessageType {
+		SHARE_ID("id"),
+		REQUEST_ID("id-request"),
+		CHANGE_ID("id-change");
+
+		public static final String DELIMITER = ":";
+		private final String identifier;
+
+		/**
+		 * Used to send structured messages with given types, and to determine
+		 * the types of messages being received.
+		 *
+		 * <p>Messages should be structured as:
+		 * {@link MessageType#getIdentifier()}{@link MessageType#DELIMITER}message data
+		 * </p>
+		 *
+		 * @param identifier The id used to determine the message type.
+		 */
+		MessageType(final String identifier) {
+			this.identifier = identifier;
 		}
-		INET_ADDRESS = tempAddress;
+
+		/**
+		 * @return The identifier of the <code>MessageType</code>.
+		 */
+		public String getIdentifier() {
+			return this.identifier;
+		}
+
+		/**
+		 * Finds the <code>MessageType</code> that matches the identifier.
+		 * @param identifier The identifier of the <code>MessageType</code>.
+		 * @return The <code>MessageType</code> with the given identifier.
+		 */
+		public static MessageType getByName(final String identifier) {
+			for (final MessageType type : MessageType.values()) {
+				if (type.getIdentifier().equals(identifier)) {
+					return type;
+				}
+			}
+			return null;
+		}
+
+		/**
+		 * Parses an incoming message.
+		 *
+		 * <p>The message will be split into a <code>Pair</code>, which has
+		 * a key of <code>MessageType</code> and value of the message.</p>
+		 *
+		 * If the message does not have a correct identifier, the returned <code>MessageType</code>
+		 * will be null. If the message itself is null, then null will be returned.
+		 *
+		 * @return The parsed message.
+		 */
+		public static Pair<MessageType, String> parseMessage(final String message) {
+			if (message != null) {
+				final String[] split = message.split(MessageType.DELIMITER, 2);
+				if (split.length == 1) {
+					return new Pair<>(null, message);
+				}
+				return new Pair<>(MessageType.getByName(split[0]), split[1]);
+			}
+			return null;
+		}
+
+        /**
+         * Creates a structured message with the given type and message data to send.
+         * @param type The message type.
+         * @param message The message to send.
+         * @return The structured <code>String</code> representation of the message.
+         */
+		public static String createMessage(final MessageType type, final String message) {
+            if (type == null || message == null) {
+                return null;
+            }
+            return type.getIdentifier() + MessageType.DELIMITER + message;
+        }
 	}
 
 	private final MulticastSocket multicastSocket;
 	private final CopyOnWriteArraySet<Consumer<String>> messageListeners;
-
 	private final Object receiveThreadLock = new Object();
 	private Thread receiveThread;
 
     /**
-     * Creates a new multicast client, which automatically joins 
+     * Creates a new multicast client, which automatically joins
      * the multicast group {@link MulticastClient#PORT} and binds to port {@link MulticastClient#GROUP_ADDRESS}.
      * @throws IOException Thrown if an I/O exception occurs while creating the underlying MulticastSocket.
      */
@@ -44,10 +128,6 @@ public class MulticastClient {
 		this.multicastSocket.joinGroup(InetAddress.getByName(MulticastClient.GROUP_ADDRESS));
     }
 
-    /*
-     * TODO: Create system for peer discovery.
-     */
-    
     /**
      * Tells the client to start listening for incoming packets.
      * @return If the client has started listening after this method call.port
@@ -93,7 +173,7 @@ public class MulticastClient {
 			// as the loop will exit if the connection drops.
 		}
 	}
-    
+
     /**
      * Stops the client from listening to incoming packets.
 	 *
@@ -112,7 +192,7 @@ public class MulticastClient {
 			return false;
 		}
     }
-    
+
     /**
      * Sends a message from the locally connected socket.
      * @param message The message to send.
@@ -124,7 +204,7 @@ public class MulticastClient {
     	final byte[] buffer = message.getBytes();
 		this.multicastSocket.send(new DatagramPacket(buffer, buffer.length, MulticastClient.INET_ADDRESS, MulticastClient.PORT));
     }
-    
+
     /**
      * Closes the client's connection.
 	 * <p>This method will return false if the client was closed prior to this method being called.</p>
@@ -170,7 +250,7 @@ public class MulticastClient {
     public void setLoopbackMode(final boolean disable) throws SocketException {
 		this.multicastSocket.setLoopbackMode(disable);
     }
-    
+
     /**
      * Adds a listener to the client, which is notified when a packet is received.
 	 * <p>This method will return false if the listener existed before this method was called.</p>
@@ -180,7 +260,7 @@ public class MulticastClient {
     public boolean addMessageListener(final Consumer<String> listener) {
     	return this.messageListeners.add(listener);
     }
-    
+
     /**
      * Checks if a message listener has been added to the client.
 	 * <p>This method will return true if the listener existed before this method was called.</p>
@@ -190,7 +270,7 @@ public class MulticastClient {
     public boolean containsMessageListener(final Consumer<String> listener) {
     	return this.messageListeners.contains(listener);
     }
-    
+
     /**
      * Removes a message listener from the client.
 	 * <p>This method will return false if the listener did not exist before this method was called.</p>
@@ -200,5 +280,5 @@ public class MulticastClient {
     public boolean removeMessageListener(final Consumer<String> listener) {
     	return this.messageListeners.remove(listener);
     }
-    
+
 }
