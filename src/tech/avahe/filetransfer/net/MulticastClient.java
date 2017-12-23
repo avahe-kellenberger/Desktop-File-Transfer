@@ -157,8 +157,8 @@ public class MulticastClient {
 		try {
 			boolean isReceiveThread;
             final byte[] buffer = new byte[4096];
+			final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 			do {
-				final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 				this.multicastSocket.receive(packet);
 
 				// Don't dispatch trailing packets if the thread was interrupted and null.
@@ -167,8 +167,7 @@ public class MulticastClient {
 				}
 				if (isReceiveThread) {
 					// Notify the listeners of the incoming message.
-					final byte[] data = packet.getData();
-					final String message = new String(data, 0, packet.getLength());
+					final String message = new String(packet.getData(), packet.getOffset(), packet.getLength());
 					this.messageListeners.forEach(listener -> listener.accept(message));
 				}
 			} while (isReceiveThread);
