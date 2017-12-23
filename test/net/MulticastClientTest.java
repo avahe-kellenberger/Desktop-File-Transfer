@@ -43,8 +43,8 @@ public class MulticastClientTest {
 				throw new Exception("Clients were closed after being initialized; aborting tests.");
 			}
 
-			if (!clientA.listen() || !clientB.listen()) {
-				throw new Exception("Clients failed to start listening; aborting tests.");
+			if (!clientB.listen()) {
+				throw new Exception("Client B failed to start listening; aborting tests.");
 			}
 
 			// Run the test suite.

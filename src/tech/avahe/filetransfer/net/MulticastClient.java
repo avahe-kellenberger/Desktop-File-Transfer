@@ -118,8 +118,9 @@ public class MulticastClient {
 
 	private final MulticastSocket multicastSocket;
 	private final CopyOnWriteArraySet<Consumer<String>> messageListeners;
-	private final Object receiveThreadLock = new Object();
 	private Thread receiveThread;
+	private final Object receiveThreadLock = new Object();
+	private boolean listening = false;
 
     /**
      * Creates a new multicast client, which automatically joins
@@ -138,16 +139,20 @@ public class MulticastClient {
      * This method will return false if it was already listening for packets.
      */
     public boolean listen() {
-    	synchronized (this.receiveThreadLock) {
-			if (this.receiveThread != null && this.receiveThread.isAlive() && !this.receiveThread.isInterrupted()) {
-				return false;
-			}
-			// Create a thread which listens for packets while the socket is open.
-			this.receiveThread = new Thread(this::receive);
-			// Start listening for messages.
-			this.receiveThread.start();
-		}
-    	return true;
+        synchronized (this.receiveThreadLock) {
+            if (this.receiveThread == null || !this.receiveThread.isAlive()) {
+                this.listening = true;
+                // Create a thread which listens for packets while the socket is open.
+                this.receiveThread = new Thread(this::receive);
+                // Start listening for messages.
+                this.receiveThread.start();
+            } else if (this.listening) {
+                    return false;
+            } else {
+                this.listening = true;
+            }
+        }
+        return true;
     }
 
 	/**
@@ -155,7 +160,6 @@ public class MulticastClient {
 	 */
 	private void receive() {
 		try {
-			boolean isReceiveThread;
             final byte[] buffer = new byte[4096];
 			final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 			do {
@@ -163,19 +167,22 @@ public class MulticastClient {
 
 				// Don't dispatch trailing packets if the thread was interrupted and null.
 				synchronized (this.receiveThreadLock) {
-					isReceiveThread = !this.receiveThread.isInterrupted();
+					if (this.listening && this.receiveThread.isInterrupted()) {
+						Thread.interrupted();
+					}
 				}
-				if (isReceiveThread) {
+				if (this.listening) {
 					// Notify the listeners of the incoming message.
 					final String message = new String(packet.getData(), packet.getOffset(), packet.getLength());
 					this.messageListeners.forEach(listener -> listener.accept(message));
 				}
-			} while (isReceiveThread);
+			} while (this.listening);
 		} catch (IOException ex) {
 			// Silently ignore the exception,
 			// as the loop will exit if the connection drops.
 		} finally {
 			this.receiveThread = null;
+			this.listening = false;
 		}
 	}
 
@@ -189,8 +196,9 @@ public class MulticastClient {
      */
     public boolean stopListening() {
     	synchronized (this.receiveThreadLock) {
-			if (this.receiveThread != null && this.receiveThread.isAlive() && !this.receiveThread.isInterrupted()) {
+			if (this.receiveThread != null && this.receiveThread.isAlive() && this.listening) {
 				this.receiveThread.interrupt();
+				this.listening = false;
 				return true;
 			}
 			return false;
