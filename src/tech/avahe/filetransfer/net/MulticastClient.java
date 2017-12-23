@@ -156,8 +156,8 @@ public class MulticastClient {
 	private void receive() {
 		try {
 			boolean isReceiveThread;
+            final byte[] buffer = new byte[4096];
 			do {
-				final byte[] buffer = new byte[4096];
 				final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 				this.multicastSocket.receive(packet);
 
