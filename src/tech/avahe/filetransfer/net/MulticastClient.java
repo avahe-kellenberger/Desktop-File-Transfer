@@ -163,7 +163,7 @@ public class MulticastClient {
 
 				// Don't dispatch trailing packets if the thread was interrupted and null.
 				synchronized (this.receiveThreadLock) {
-					isReceiveThread = this.receiveThread != null;
+					isReceiveThread = !this.receiveThread.isInterrupted();
 				}
 				if (isReceiveThread) {
 					// Notify the listeners of the incoming message.
@@ -175,6 +175,8 @@ public class MulticastClient {
 		} catch (IOException ex) {
 			// Silently ignore the exception,
 			// as the loop will exit if the connection drops.
+		} finally {
+			this.receiveThread = null;
 		}
 	}
 
@@ -190,7 +192,6 @@ public class MulticastClient {
     	synchronized (this.receiveThreadLock) {
 			if (this.receiveThread != null && this.receiveThread.isAlive() && !this.receiveThread.isInterrupted()) {
 				this.receiveThread.interrupt();
-				this.receiveThread = null;
 				return true;
 			}
 			return false;
