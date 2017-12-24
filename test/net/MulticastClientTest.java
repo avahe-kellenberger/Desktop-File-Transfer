@@ -31,7 +31,6 @@ public class MulticastClientTest {
 		final StringBuilder report = new StringBuilder();
 		report.append("Initializing the test clients...");
 		report.append(System.lineSeparator());
-		
 		MulticastClient clientA = null, clientB = null;
 		
 		try {

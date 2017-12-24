@@ -1,11 +1,17 @@
 package tech.avahe.filetransfer.net;
 
-import javafx.util.Pair;
 
 import java.io.IOException;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Consumer;
+
+import tech.avahe.filetransfer.util.Pair;
 
 /**
  * @author Avahe
