@@ -40,9 +40,26 @@ public class MulticastClient {
 	 * of incoming multicast messages.
 	 */
 	public enum MessageType {
+		/**
+		 * A message intended to share the client's ID.
+		 */
 		SHARE_ID((byte) 0),
+		/**
+		 * A message to request <code>MessageType#SHARE_ID</code> messages from every client in the multicast group.
+		 */
 		REQUEST_ID((byte) 1),
-		CHANGE_ID((byte) 2);
+		/**
+		 * A message notifying other clients of an ID change.
+		 */
+		CHANGE_ID((byte) 2),
+        /**
+         * A request sent to a client to send files to said client.
+         */
+		REQUEST_TO_SEND((byte) 3),
+        /**
+         * A message accepting a <code>MessageType#REQUEST_TO_SEND</code> message.
+         */
+		ACCEPT_SEND_REQUEST((byte) 4);
 
 		public static final String DELIMITER = ":";
 		private final byte identifier;
