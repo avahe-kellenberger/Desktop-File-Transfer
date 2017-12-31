@@ -178,6 +178,8 @@ public enum MulticastMessage {
     public static void notifyListeners(final String rawMessage, final Set<MulticastMessageListener> listeners) {
         final Pair<MulticastMessage, String> split = MulticastMessage.splitMessage(rawMessage);
         if (split != null) {
+            // Notify all listeners of an incoming message, if it is not null.
+            listeners.forEach(listener -> listener.onMessage(rawMessage));
             final MulticastMessage type = split.getKey();
             if (type == null) {
                 listeners.forEach(listener -> listener.onUnknownMessage(split.getValue()));

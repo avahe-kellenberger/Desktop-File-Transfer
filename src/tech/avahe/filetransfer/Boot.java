@@ -49,7 +49,12 @@ public class Boot {
 
                 }
 
-                @Override
+				@Override
+				public void onMessage(String message) {
+
+				}
+
+				@Override
 				public void onSettingsLoaded(Map<String, String> settings) {
 					if (settings != null) {
 						for (final String key : settings.keySet()) {

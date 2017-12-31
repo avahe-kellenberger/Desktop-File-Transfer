@@ -23,4 +23,7 @@ public class MulticastMessageAdapter implements MulticastMessageListener {
     @Override
     public void onUnknownMessage(String message) { }
 
+    @Override
+    public void onMessage(final String message) { }
+
 }

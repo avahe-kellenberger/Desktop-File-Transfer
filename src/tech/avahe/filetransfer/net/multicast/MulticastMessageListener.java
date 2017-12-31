@@ -46,4 +46,10 @@ public interface MulticastMessageListener {
      */
     void onUnknownMessage(final String message);
 
+    /**
+     * Called when the local client receives any type of message.
+     * @param message The raw message received.
+     */
+    void onMessage(final String message);
+
 }

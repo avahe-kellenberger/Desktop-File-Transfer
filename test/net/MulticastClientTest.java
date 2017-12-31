@@ -5,6 +5,7 @@ import java.util.ArrayList;
 
 import tech.avahe.filetransfer.net.multicast.MulticastClient;
 import tech.avahe.filetransfer.net.multicast.MulticastMessageAdapter;
+import tech.avahe.filetransfer.net.multicast.MulticastMessageListener;
 
 /**
  * @author Avahe
@@ -42,7 +43,6 @@ public class MulticastClientTest {
 			if (clientA.isClosed() || clientB.isClosed()) {
 				throw new Exception("Clients were closed after being initialized; aborting tests.");
 			}
-
 			if (!clientB.listen()) {
 				throw new Exception("Client B failed to start listening; aborting tests.");
 			}
@@ -78,13 +78,14 @@ public class MulticastClientTest {
 		final ArrayList<String> received = new ArrayList<>(3);
 
 		// Listen for incoming packets.
-		clientB.addMessageListener(new MulticastMessageAdapter() {
-            @Override
-            public void onUnknownMessage(String message) {
-                received.add(message);
-                signal.set();
-            }
-        });
+		final MulticastMessageAdapter adapter = new MulticastMessageAdapter() {
+			@Override
+			public void onUnknownMessage(String message) {
+				received.add(message);
+				signal.set();
+			}
+		};
+		clientB.addMessageListener(adapter);
 		
 		final String[] messages = { "Message 0", "Message 1", "Message 2" };
 		
@@ -123,8 +124,49 @@ public class MulticastClientTest {
 		} catch (IOException | InterruptedException ex) {
 			ex.printStackTrace();
 			return false;
+		} finally {
+			clientB.removeMessageListener(adapter);
 		}
 		return true;
 	}
-	
+
+	// TODO:
+	private boolean testMulticastMessages(final MulticastClient clientA, final MulticastClient clientB) {
+		final MulticastMessageListener listener = new MulticastMessageListener() {
+			public void onIDShare(String nick, String ipAddress) {
+				System.out.println("onIdShare: " + nick + ", " + ipAddress);
+			}
+
+			public void onIDRequest() {
+				System.out.println("onIDRequest");
+			}
+
+			public void onSendRequest(String ipAddress) {
+				System.out.println("onSendRequest: " + ipAddress);
+			}
+
+			public void onSendRequestAccepted(String ipAddress, int port) {
+				System.out.println("onSendRequestAccepted: " + ipAddress + ", " + port);
+			}
+
+			public void onSendRequestRejected(String ipAddress) {
+				System.out.println("onSendRequestRejected: " + ipAddress);
+			}
+
+			public void onUnknownMessage(String message) {
+				System.out.println("onUnknownMessage: " + message);
+			}
+
+			public void onMessage(final String message) {
+				// TODO: Use signal.
+			}
+		};
+
+		clientA.addMessageListener(listener);
+
+
+
+		return false;
+	}
+
 }
