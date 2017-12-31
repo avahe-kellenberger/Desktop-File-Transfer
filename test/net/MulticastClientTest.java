@@ -3,7 +3,8 @@ package net;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import tech.avahe.filetransfer.net.MulticastClient;
+import tech.avahe.filetransfer.net.multicast.MulticastClient;
+import tech.avahe.filetransfer.net.multicast.MulticastMessageAdapter;
 
 /**
  * @author Avahe
@@ -77,10 +78,13 @@ public class MulticastClientTest {
 		final ArrayList<String> received = new ArrayList<>(3);
 
 		// Listen for incoming packets.
-		clientB.addMessageListener(message -> {
-			received.add(message);
-			signal.set();
-		});
+		clientB.addMessageListener(new MulticastMessageAdapter() {
+            @Override
+            public void onUnknownMessage(String message) {
+                received.add(message);
+                signal.set();
+            }
+        });
 		
 		final String[] messages = { "Message 0", "Message 1", "Message 2" };
 		

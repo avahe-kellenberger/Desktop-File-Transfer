@@ -16,9 +16,35 @@ public class Boot {
 	 */
 	public static void main(String[] args) {
 		// TODO: Launch command line or gui version based on arguments.
-		try {
-			final FileTransfer program = new FileTransfer() {
-				@Override
+        FileTransfer program = null;
+        try {
+			program = new FileTransfer() {
+                @Override
+                public void onIDShare(String nick, String ipAddress) {
+
+                }
+
+                @Override
+                public void onIDRequest() {
+
+                }
+
+                @Override
+                public void onSendRequest(String ipAddress) {
+
+                }
+
+                @Override
+                public void onSendRequestAccepted(String ipAddress, int port) {
+
+                }
+
+                @Override
+                public void onUnknownMessage(String message) {
+
+                }
+
+                @Override
 				public void onSettingsLoaded(Map<String, String> settings) {
 					if (settings != null) {
 						for (final String key : settings.keySet()) {
@@ -32,6 +58,9 @@ public class Boot {
 		} catch (IOException ex) {
 			ex.printStackTrace();
 		}
+		if (program == null) {
+            System.err.println("Client could not be established - terminating program.");
+        }
 	}
 	
 }

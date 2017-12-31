@@ -2,7 +2,8 @@ package tech.avahe.filetransfer;
 
 import tech.avahe.filetransfer.common.Settings;
 import tech.avahe.filetransfer.common.Settings.Keys;
-import tech.avahe.filetransfer.net.MulticastClient;
+import tech.avahe.filetransfer.net.multicast.MulticastClient;
+import tech.avahe.filetransfer.net.multicast.MulticastMessageListener;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
@@ -13,7 +14,7 @@ import java.util.Map;
  * @author Avahe
  *
  */
-public abstract class FileTransfer {
+public abstract class FileTransfer implements MulticastMessageListener {
 
 	private String username;
 	
@@ -39,19 +40,8 @@ public abstract class FileTransfer {
 		// Ensure the MulticastClient's loopback mode is set to false,
 		// so that the program will not receive its own messages as an external program on the network.
 		this.multicastClient.setLoopbackMode(true);
-		this.multicastClient.addMessageListener(this::messageListener);
+		this.multicastClient.addMessageListener(this);
 		this.loadSettings();
-	}
-
-	/**
-	 *
-	 * @param message The incoming raw message.
-	 */
-	private void messageListener(final String message) {
-		// TODO: Create system for handling peer discovery.
-		// Pass on received messages to (abstract/protected) receive{MessageTypeName} methods.
-		// This needs to be created after the TCP client is structured, so IP addresses can be
-		// appropriately disseminated to all clients on the LAN.
 	}
 
 	/**
@@ -65,6 +55,9 @@ public abstract class FileTransfer {
 	 * Loads the user settings from the configuration file.
 	 * If the settings do not exist or any members are missing,
 	 * the default settings will be written to the configuration file.
+     *
+     * <p>If the settings file cannot be accessed, the default settings will be used
+     * and no settings will be saved.</p>
 	 * 
 	 * <p>Note: Once this method finishes, it will invoke {@link FileTransfer#onSettingsLoaded(Map)}.</p>
 	 */
@@ -74,7 +67,7 @@ public abstract class FileTransfer {
 			settings = Settings.getSettings();
 			if (settings != null) {
 				// Check for missing settings.
-				final Map<String, String> missingSettings = new LinkedHashMap<String, String>();
+				final Map<String, String> missingSettings = new LinkedHashMap<>();
 				for (final Keys key : Settings.Keys.values()) {
 					final String keyName = key.getName();
 					 if (!settings.containsKey(keyName)) {
@@ -93,7 +86,6 @@ public abstract class FileTransfer {
 		} catch (IOException ex) {
 			// Silently ignore the exception if the file is not accessible.
 			// The settings will be passed as null.
-			ex.printStackTrace();
 		}
 		this.onSettingsLoaded(settings);
 	}

@@ -1,17 +1,9 @@
-package tech.avahe.filetransfer.net;
+package tech.avahe.filetransfer.net.multicast;
 
 
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
-import java.net.SocketException;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.function.Consumer;
-
-import tech.avahe.filetransfer.util.Pair;
 
 /**
  * @author Avahe
@@ -35,112 +27,8 @@ public class MulticastClient {
         INET_ADDRESS = tempAddress;
     }
 
-	/**
-	 * <code>MessageType</code> is used to determine the message types
-	 * of incoming multicast messages.
-	 */
-	public enum MessageType {
-		/**
-		 * A message intended to share the client's ID.
-		 */
-		SHARE_ID((byte) 0),
-		/**
-		 * A message to request <code>MessageType#SHARE_ID</code> messages from every client in the multicast group.
-		 */
-		REQUEST_ID((byte) 1),
-		/**
-		 * A message notifying other clients of an ID change.
-		 */
-		CHANGE_ID((byte) 2),
-        /**
-         * A request sent to a client to send files to said client.
-         */
-		REQUEST_TO_SEND((byte) 3),
-        /**
-         * A message accepting a <code>MessageType#REQUEST_TO_SEND</code> message.
-         */
-		ACCEPT_SEND_REQUEST((byte) 4);
-
-		public static final String DELIMITER = ":";
-		private final byte identifier;
-
-		/**
-		 * Used to send structured messages with given types, and to determine
-		 * the types of messages being received.
-		 *
-		 * <p>Messages should be structured as:
-		 * {@link MessageType#getIdentifier()}{@link MessageType#DELIMITER}message data
-		 * </p>
-		 *
-		 * @param identifier The id used to determine the message type.
-		 */
-		MessageType(final byte identifier) {
-			this.identifier = identifier;
-		}
-
-		/**
-		 * @return The identifier of the <code>MessageType</code>.
-		 */
-		public byte getIdentifier() {
-			return this.identifier;
-		}
-
-		/**
-		 * Finds the <code>MessageType</code> that matches the identifier.
-		 * @param identifier The identifier of the <code>MessageType</code>.
-		 * @return The <code>MessageType</code> with the given identifier.
-		 */
-		public static MessageType getByIdentifier(final byte identifier) {
-			for (final MessageType type : MessageType.values()) {
-				if (type.getIdentifier() == identifier) {
-					return type;
-				}
-			}
-			return null;
-		}
-
-		/**
-		 * Parses an incoming message.
-		 *
-		 * <p>The message will be split into a <code>Pair</code>, which has
-		 * a key of <code>MessageType</code> and value of the message.</p>
-		 *
-		 * If the message does not have a correct identifier, the returned <code>MessageType</code>
-		 * will be null. If the message itself is null, then null will be returned.
-		 *
-		 * @return The parsed message.
-		 */
-		public static Pair<MessageType, String> parseMessage(final String message) {
-			if (message != null) {
-				final String[] split = message.split(MessageType.DELIMITER, 2);
-				if (split.length == 1) {
-					return new Pair<>(null, message);
-				}
-				try {
-                    return new Pair<>(MessageType.getByIdentifier(Byte.parseByte(split[0])), split[1]);
-                } catch (NumberFormatException ex) {
-                    return new Pair<>(null, message);
-				}
-			}
-			return null;
-		}
-
-        /**
-         * Creates a structured message with the given type and message data to send.
-         * @param type The message type.
-         * @param message The message to send.
-         * @return The structured <code>String</code> representation of the message.
-         */
-		public static String createMessage(final MessageType type, final String message) {
-            if (type == null || message == null) {
-                return null;
-            }
-            return type.getIdentifier() + MessageType.DELIMITER + message;
-        }
-	}
-
 	private final MulticastSocket multicastSocket;
-	private final CopyOnWriteArraySet<Consumer<String>> messageListeners;
+	private final CopyOnWriteArraySet<MulticastMessageListener> messageListeners;
 	private Thread receiveThread;
 	private final Object receiveThreadLock = new Object();
 	private boolean listening = false;
@@ -197,12 +85,11 @@ public class MulticastClient {
 				if (this.listening) {
 					// Notify the listeners of the incoming message.
 					final String message = new String(packet.getData(), packet.getOffset(), packet.getLength());
-					this.messageListeners.forEach(listener -> listener.accept(message));
+                    MulticastMessage.notifyListeners(message, this.messageListeners);
 				}
 			} while (this.listening);
 		} catch (IOException ex) {
-			// Silently ignore the exception,
-			// as the loop will exit if the connection drops.
+			// Silently ignore the exception, as the loop will exit if the connection drops.
 		} finally {
 			this.receiveThread = null;
 			this.listening = false;
@@ -292,7 +179,7 @@ public class MulticastClient {
      * @param listener The listener to add.
      * @return If the listener was added successfully.
      */
-    public boolean addMessageListener(final Consumer<String> listener) {
+    public boolean addMessageListener(final MulticastMessageListener listener) {
     	return this.messageListeners.add(listener);
     }
 
@@ -302,7 +189,7 @@ public class MulticastClient {
      * @param listener The listener to check for.
      * @return If the client contains the listener.
      */
-    public boolean containsMessageListener(final Consumer<String> listener) {
+    public boolean containsMessageListener(final MulticastMessageListener listener) {
     	return this.messageListeners.contains(listener);
     }
 
@@ -312,7 +199,7 @@ public class MulticastClient {
      * @param listener The listener to remove.
      * @return If the listener was removed successfully.
      */
-    public boolean removeMessageListener(final Consumer<String> listener) {
+    public boolean removeMessageListener(final MulticastMessageListener listener) {
     	return this.messageListeners.remove(listener);
     }
 
