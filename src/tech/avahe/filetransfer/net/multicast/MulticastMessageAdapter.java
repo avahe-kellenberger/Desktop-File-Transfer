@@ -18,6 +18,9 @@ public class MulticastMessageAdapter implements MulticastMessageListener {
     public void onSendRequestAccepted(String ipAddress, int port) { }
 
     @Override
+    public void onSendRequestRejected(String ipAddress) { }
+
+    @Override
     public void onUnknownMessage(String message) { }
 
 }

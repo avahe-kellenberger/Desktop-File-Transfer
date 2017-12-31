@@ -34,6 +34,13 @@ public interface MulticastMessageListener {
     void onSendRequestAccepted(final String ipAddress, final int port);
 
     /**
+     * Called when the local client receives a {@link MulticastMessage#SEND_REQUEST_REJECTED} message
+     * from a remote client, which was sent in reply to a {@link MulticastMessage#SEND_REQUEST} message.
+     * @param ipAddress The ip address of the remote client.
+     */
+    void onSendRequestRejected(final String ipAddress);
+
+    /**
      * Called when a message is received that is not of any of the predefined {@link MulticastMessage} types.
      * @param message The raw message that was received.
      */

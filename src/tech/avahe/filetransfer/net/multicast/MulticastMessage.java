@@ -24,7 +24,11 @@ public enum MulticastMessage {
     /**
      * A message accepting a <code>MulticastMessage#SEND_REQUEST</code> message.
      */
-    SEND_REQUEST_ACCEPTED((byte) 3);
+    SEND_REQUEST_ACCEPTED((byte) 3),
+    /**
+     * A message rejecting a <code>MulticastMessage#SEND_REQUEST</code> message.
+     */
+    SEND_REQUEST_REJECTED((byte) 4);
 
     public static final String DELIMITER = ",";
     private final byte identifier;
@@ -125,6 +129,16 @@ public enum MulticastMessage {
         return MulticastMessage.createMessage(SEND_REQUEST_ACCEPTED, new String[] { ipAddress, String.valueOf(port) });
     }
 
+    /**
+     * Creates a message to notify a remote client that its MulticastMessage{@link #SEND_REQUEST} message was rejected.
+     *
+     * @param ipAddress The ip address of the client sending the message.
+     * @return A standardized message to be sent to a <code>MulticastClient.</code>
+     */
+    public static String createSendRequestRejectedMessage(final String ipAddress) {
+        return MulticastMessage.createMessage(SEND_REQUEST_REJECTED, new String[] { ipAddress });
+    }
+
     //endregion
 
     /**
@@ -203,6 +217,15 @@ public enum MulticastMessage {
                             } else {
                                 System.err.println("Invalid message format.");
                             }
+                            break;
+
+                        case SEND_REQUEST_REJECTED:
+                            if (args.length == 1) {
+                            final String ip = args[0];
+                            listeners.forEach(listener -> listener.onSendRequestRejected(ip));
+                        } else {
+                            System.err.println("Invalid message format.");
+                        }
                             break;
 
                     }
