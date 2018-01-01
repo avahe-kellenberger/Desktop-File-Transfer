@@ -80,11 +80,11 @@ public enum MulticastMessage {
             for (int i = 0; i < messageArgs.length; i++) {
                 builder.append(messageArgs[i]);
                 if (i < messageArgs.length - 1) {
-                    builder.append(",");
+                    builder.append(MulticastMessage.DELIMITER);
                 }
             }
         }
-        return type == null ? builder.toString() : type.getIdentifier() + builder.length() > 0 ? MulticastMessage.DELIMITER + builder.toString() : "";
+        return type == null ? builder.toString() : type.getIdentifier() + (builder.length() > 0 ? MulticastMessage.DELIMITER + builder.toString() : "");
     }
 
     //region Message creators
