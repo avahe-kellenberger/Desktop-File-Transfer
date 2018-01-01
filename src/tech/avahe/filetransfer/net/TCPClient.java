@@ -7,7 +7,7 @@ import java.net.UnknownHostException;
 
 public class TCPClient {
 
-    private static final String LOCAL_ADDRESS;
+    public static final String LOCAL_ADDRESS;
 
     static {
         InetAddress tempAddress = null;
@@ -18,7 +18,6 @@ public class TCPClient {
             System.exit(-1);
         }
         LOCAL_ADDRESS = tempAddress.getHostAddress();
-        System.out.println(LOCAL_ADDRESS);
     }
 
     private final Socket socket;

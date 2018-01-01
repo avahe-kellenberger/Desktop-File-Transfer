@@ -1,11 +1,14 @@
 package net;
 
-import java.io.IOException;
-import java.util.ArrayList;
-
+import tech.avahe.filetransfer.net.TCPClient;
 import tech.avahe.filetransfer.net.multicast.MulticastClient;
+import tech.avahe.filetransfer.net.multicast.MulticastMessage;
 import tech.avahe.filetransfer.net.multicast.MulticastMessageAdapter;
 import tech.avahe.filetransfer.net.multicast.MulticastMessageListener;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author Avahe
@@ -18,6 +21,10 @@ public class MulticastClientTest {
 	 * Creates the test class.
 	 */
 	public static void main(String[] args) {
+		final String message = "1,clientB,127.0.1.1";
+		for (String s : message.split(",", 2)) {
+			System.out.println(s);
+		}
 		try {
 			new MulticastClientTest();
 		} catch (Exception ex) {
@@ -52,6 +59,12 @@ public class MulticastClientTest {
 			report.append(System.lineSeparator());
 			report.append("\tPassed: ");
 			report.append(this.checkConnectivity(clientA, clientB));
+			report.append(System.lineSeparator());
+
+			report.append("Testing sending and receiving MulticastMessages.");
+			report.append(System.lineSeparator());
+			report.append("\tPassed: ");
+			report.append(this.testMulticastMessages(clientA, clientB));
 			report.append(System.lineSeparator());
 			
 			
@@ -130,42 +143,118 @@ public class MulticastClientTest {
 		return true;
 	}
 
-	// TODO:
+	/**
+	 * TODO: Document
+	 * @param clientA
+	 * @param clientB
+	 * @return
+	 */
 	private boolean testMulticastMessages(final MulticastClient clientA, final MulticastClient clientB) {
+		final Signal signal = new Signal();
+
+		final List<Byte> messageTypes = new ArrayList<>(MulticastMessage.values().length + 1);
+		final Byte unknownIdentifier = (byte) -1;
+		messageTypes.add(unknownIdentifier);
+		for (final MulticastMessage m : MulticastMessage.values()) {
+			messageTypes.add(m.getIdentifier());
+		}
+
 		final MulticastMessageListener listener = new MulticastMessageListener() {
+
 			public void onIDShare(String nick, String ipAddress) {
-				System.out.println("onIdShare: " + nick + ", " + ipAddress);
+				messageTypes.remove(MulticastMessage.ID_SHARE.getIdentifier());
+				signal.set();
 			}
 
 			public void onIDRequest() {
-				System.out.println("onIDRequest");
+				messageTypes.remove(MulticastMessage.ID_REQUEST.getIdentifier());
+				signal.set();
 			}
 
 			public void onSendRequest(String ipAddress) {
-				System.out.println("onSendRequest: " + ipAddress);
+				messageTypes.remove(MulticastMessage.SEND_REQUEST.getIdentifier());
+				signal.set();
 			}
 
 			public void onSendRequestAccepted(String ipAddress, int port) {
-				System.out.println("onSendRequestAccepted: " + ipAddress + ", " + port);
+				messageTypes.remove(MulticastMessage.SEND_REQUEST_ACCEPTED.getIdentifier());
+				signal.set();
 			}
 
 			public void onSendRequestRejected(String ipAddress) {
-				System.out.println("onSendRequestRejected: " + ipAddress);
+				messageTypes.remove(MulticastMessage.SEND_REQUEST_REJECTED.getIdentifier());
+				signal.set();
 			}
 
 			public void onUnknownMessage(String message) {
-				System.out.println("onUnknownMessage: " + message);
+				messageTypes.remove(unknownIdentifier);
+				signal.set();
 			}
 
 			public void onMessage(final String message) {
-				// TODO: Use signal.
+				System.out.println("Received: " + message);
 			}
 		};
 
-		clientA.addMessageListener(listener);
+		clientB.addMessageListener(listener);
 
+		try {
+			final String nick = "clientB";
+			final String ip = TCPClient.LOCAL_ADDRESS;
+			final int port = 1337;
 
+			clientA.send(MulticastMessage.createIDShareMessage(nick, ip));
+			signal.waitForTimeout(3000);
+			if (messageTypes.contains(MulticastMessage.ID_SHARE.getIdentifier())) {
+				System.err.println("Client did not receive a MulticastMessage#ID_SHARE message when expected.");
+				return false;
+			}
 
+			clientA.send(MulticastMessage.createIDRequestMessage());
+			signal.waitForTimeout(3000);
+			if (messageTypes.contains(MulticastMessage.ID_REQUEST.getIdentifier())) {
+				System.err.println("Client did not receive a MulticastMessage#ID_REQUEST message when expected.");
+				return false;
+			}
+
+			clientA.send(MulticastMessage.createSendRequestMessage(ip));
+			signal.waitForTimeout(3000);
+			if (messageTypes.contains(MulticastMessage.SEND_REQUEST.getIdentifier())) {
+				System.err.println("Client did not receive a MulticastMessage#SEND_REQUEST message when expected.");
+				return false;
+			}
+
+			clientA.send(MulticastMessage.createSendRequestAcceptedMessage(ip, port));
+			signal.waitForTimeout(3000);
+			if (messageTypes.contains(MulticastMessage.SEND_REQUEST_ACCEPTED.getIdentifier())) {
+				System.err.println("Client did not receive a MulticastMessage#SEND_REQUEST_ACCEPTED message when expected.");
+				return false;
+			}
+
+			clientA.send(MulticastMessage.createSendRequestRejectedMessage(ip));
+			signal.waitForTimeout(3000);
+			if (messageTypes.contains(MulticastMessage.SEND_REQUEST_REJECTED.getIdentifier())) {
+				System.err.println("Client did not receive a MulticastMessage#SEND_REQUEST_REJECTED message when expected.");
+				return false;
+			}
+
+			clientA.send("Unknown message");
+			signal.waitForTimeout(3000);
+			if (messageTypes.contains(unknownIdentifier)) {
+				System.err.println("Client did not receive a message of unknown type when expected.");
+				return false;
+			}
+
+			return true;
+		} catch (IOException ex) {
+			System.err.println("Failed to send multicast messages - terminating test.");
+			ex.printStackTrace();
+		} catch (InterruptedException ex) {
+			System.err.println("Thread using Signal was unexpectedly interrupted - terminating test.");
+			ex.printStackTrace();
+		} finally {
+			clientA.removeMessageListener(listener);
+		}
 		return false;
 	}
 
