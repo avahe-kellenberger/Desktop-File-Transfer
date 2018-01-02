@@ -19,6 +19,11 @@ public abstract class FileTransfer {
 	private final MulticastClient multicastClient;
 	private String username;
 
+	/*
+	 * TODO: Create list of connected clients.
+	 * Update said list with incoming ID_SHARE messages.
+	 */
+
 	/**
 	 * Creates the basic application needs for transferring files.
 	 *

@@ -28,7 +28,11 @@ public enum MulticastMessage {
     /**
      * A message rejecting a <code>MulticastMessage#SEND_REQUEST</code> message.
      */
-    SEND_REQUEST_REJECTED((byte) 4);
+    SEND_REQUEST_REJECTED((byte) 4),
+    /**
+     * A message notifying the group that the client has disconnected.
+     */
+    DISCONNECT((byte) 5);
 
     public static final String DELIMITER = ",";
     private final byte identifier;
@@ -139,6 +143,16 @@ public enum MulticastMessage {
         return MulticastMessage.createMessage(SEND_REQUEST_REJECTED, new String[] { ipAddress });
     }
 
+    /**
+     * Creates a message to notify that group that the local client is disconnecting.
+     *
+     * @param ipAddress The ip address of the local client.
+     * @return A standardized message to be sent to a <code>MulticastClient.</code>
+     */
+    public static String createDisconnectMessage(String ipAddress) {
+        return MulticastMessage.createMessage(DISCONNECT, new String[] { ipAddress });
+    }
+
     //endregion
 
     /**
@@ -223,11 +237,20 @@ public enum MulticastMessage {
 
                         case SEND_REQUEST_REJECTED:
                             if (args.length == 1) {
-                            final String ip = args[0];
-                            listeners.forEach(listener -> listener.onSendRequestRejected(ip));
-                        } else {
-                            System.err.println("Invalid message format.");
-                        }
+                                final String ip = args[0];
+                                listeners.forEach(listener -> listener.onSendRequestRejected(ip));
+                            } else {
+                                System.err.println("Invalid message format.");
+                            }
+                            break;
+
+                        case DISCONNECT:
+                            if (args.length == 1) {
+                                final String ip = args[0];
+                                listeners.forEach(listener -> listener.onDisconnect(ip));
+                            } else {
+                                System.err.println("Invalid message format.");
+                            }
                             break;
 
                     }

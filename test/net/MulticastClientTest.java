@@ -179,8 +179,15 @@ public class MulticastClientTest {
 				messageTypes.remove(MulticastMessage.SEND_REQUEST_REJECTED);
 				signal.set();
 			}
+
+			public void onDisconnect(String ipAddress) {
+				messageTypes.remove(MulticastMessage.DISCONNECT);
+				signal.set();
+			}
+
 			public void onUnknownMessage(String message) { }
 			public void onMessage(final String message) { }
+
 		};
 
 		clientB.addMessageListener(listener);
@@ -196,6 +203,7 @@ public class MulticastClientTest {
 			messageMap.put(MulticastMessage.SEND_REQUEST, MulticastMessage.createSendRequestMessage(ip));
 			messageMap.put(MulticastMessage.SEND_REQUEST_ACCEPTED, MulticastMessage.createSendRequestAcceptedMessage(ip, port));
 			messageMap.put(MulticastMessage.SEND_REQUEST_REJECTED, MulticastMessage.createSendRequestRejectedMessage(ip));
+			messageMap.put(MulticastMessage.DISCONNECT, MulticastMessage.createDisconnectMessage(ip));
 
 			for (final Map.Entry<MulticastMessage, String> entry : messageMap.entrySet()) {
 				clientA.send(entry.getValue());

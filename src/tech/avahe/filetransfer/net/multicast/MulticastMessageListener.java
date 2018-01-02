@@ -52,4 +52,10 @@ public interface MulticastMessageListener {
      */
     void onMessage(final String message);
 
+    /**
+     * Called when a disconnect message is received.
+     * @param ipAddress The ip address of the remote client.
+     */
+    void onDisconnect(final String ipAddress);
+
 }
