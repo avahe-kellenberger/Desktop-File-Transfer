@@ -104,8 +104,8 @@ public enum MulticastMessage {
      * a MulticastMessage{@link #ID_SHARE} message to the group.
      * @return A standardized message to be sent to a <code>MulticastClient.</code>
      */
-    public static String createIDRequestMessage() {
-        return MulticastMessage.createMessage(ID_REQUEST, null);
+    public static String createIDRequestMessage(final String ipAddress) {
+        return MulticastMessage.createMessage(ID_REQUEST, new String[] { ipAddress });
     }
 
     /**

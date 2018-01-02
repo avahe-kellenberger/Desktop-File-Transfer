@@ -105,33 +105,31 @@ public class MulticastClientTest {
 			// Send a message and check if it is received.
 			clientA.send(messages[0]);
 			signal.waitForTimeout(5000);
-			if (!received.contains(messages[0])) {
-				report.append("Client B failed to receive a message (5 second timeout).");
-				report.append(System.lineSeparator());
-			}
+			report.append("Client received a message: ");
+			report.append(received.contains(messages[0]));
+			report.append(System.lineSeparator());
 
 			// Stop the client from listening, and make sure it doesn't receive a message.
-			if (!clientB.stopListening()) {
-				report.append("Client B failed to stop listening.");
-			}
+			report.append("Client properly stopped listening: ");
+			report.append(clientB.stopListening());
+			report.append(System.lineSeparator());
+
 			clientA.send(messages[1]);
 			signal.waitForTimeout(1000);
-			if (received.contains(messages[1])) {
-				report.append("Client B received a message when it shouldn't have.");
-				report.append(System.lineSeparator());
-			}
+			report.append("Client properly not receiving a message: ");
+			report.append(!received.contains(messages[1]));
+			report.append(System.lineSeparator());
 
 			// Start listening for messages again, and check to see if it still receives a message.
-			if (!clientB.listen()) {
-				report.append("Client B failed to start listening.");
-				report.append(System.lineSeparator());
-			}
+			report.append("Client start listening as expected: ");
+			report.append(clientB.listen());
+			report.append(System.lineSeparator());
+
 			clientA.send(messages[2]);
 			signal.waitForTimeout(5000);
-			if (!received.contains(messages[2])) {
-				report.append("Client B didn't receive a message after listening was re-enabled.");
-				report.append(System.lineSeparator());
-			}
+			report.append("Client receiving a message after listening was re-enabled: ");
+			report.append(received.contains(messages[2]));
+			report.append(System.lineSeparator());
 		} catch (IOException | InterruptedException ex) {
 			ex.printStackTrace();
 		} finally {
@@ -141,10 +139,10 @@ public class MulticastClientTest {
 	}
 
 	/**
-	 * TODO: Document
-	 * @param clientA
-	 * @param clientB
-	 * @return
+	 * Tests the messaging protocol for MulticastClients.
+	 * @param clientA A multicast client.
+	 * @param clientB Another multicast client.
+	 * @return If the messaging test passed.
 	 */
 	private String testMulticastMessages(final MulticastClient clientA, final MulticastClient clientB) {
 		final StringBuilder report = new StringBuilder();
@@ -194,7 +192,7 @@ public class MulticastClientTest {
 
 			final HashMap<MulticastMessage, String> messageMap = new HashMap<>();
 			messageMap.put(MulticastMessage.ID_SHARE, MulticastMessage.createIDShareMessage(nick, ip));
-			messageMap.put(MulticastMessage.ID_REQUEST, MulticastMessage.createIDRequestMessage());
+			messageMap.put(MulticastMessage.ID_REQUEST, MulticastMessage.createIDRequestMessage(ip));
 			messageMap.put(MulticastMessage.SEND_REQUEST, MulticastMessage.createSendRequestMessage(ip));
 			messageMap.put(MulticastMessage.SEND_REQUEST_ACCEPTED, MulticastMessage.createSendRequestAcceptedMessage(ip, port));
 			messageMap.put(MulticastMessage.SEND_REQUEST_REJECTED, MulticastMessage.createSendRequestRejectedMessage(ip));
@@ -203,8 +201,10 @@ public class MulticastClientTest {
 				clientA.send(entry.getValue());
 				signal.waitForTimeout(3000);
 				final MulticastMessage messageType = entry.getKey();
-				report.append("Client received " + messageType.name() + " message: ");
-				report.append(!messageTypes.contains(messageType.getIdentifier()));
+				report.append("Client received ");
+				report.append(messageType.name());
+				report.append(" message: ");
+				report.append(!messageTypes.contains(messageType));
 				report.append(System.lineSeparator());
 			}
 
