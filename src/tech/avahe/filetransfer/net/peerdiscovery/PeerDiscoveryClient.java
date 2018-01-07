@@ -2,6 +2,7 @@ package tech.avahe.filetransfer.net.peerdiscovery;
 
 import tech.avahe.filetransfer.common.Environment;
 import tech.avahe.filetransfer.net.MulticastClient;
+import tech.avahe.filetransfer.threading.ThreadSignaller;
 
 import java.io.IOException;
 import java.net.SocketException;
@@ -17,9 +18,9 @@ public class PeerDiscoveryClient {
     private static final String GROUP_ADDRESS = "224.0.0.17";
     private static final int PORT = 7899;
 
-    private MulticastClient client;
+    private final MulticastClient client;
     private Thread pingThread;
-    private final Object pingThreadLock = new Object();
+    private final ThreadSignaller pingThreadSignaller = new ThreadSignaller();
 
     private String nickName;
 
@@ -101,7 +102,7 @@ public class PeerDiscoveryClient {
         if (this.isPinging()) {
             return false;
         }
-        synchronized (this.pingThreadLock) {
+        synchronized (this.pingThreadSignaller) {
             this.pingThread = new Thread(this::pingContinuously);
             this.pingThread.start();
         }
@@ -112,7 +113,7 @@ public class PeerDiscoveryClient {
      * @return If the client is actively pinging.
      */
     private boolean isPinging() {
-        synchronized (this.pingThreadLock) {
+        synchronized (this.pingThreadSignaller) {
             return this.pingThread != null && this.pingThread.isAlive() && !this.pingThread.isInterrupted();
         }
     }
@@ -125,14 +126,14 @@ public class PeerDiscoveryClient {
             final String pingMessage = PeerMessage.createFormattedMessage(PeerMessage.MessageType.PING, Environment.LOCAL_ADDRESS, this.nickName);
             while (this.isPinging()) {
                 this.client.send(pingMessage);
-                synchronized (this.pingThreadLock) {
-                    this.pingThreadLock.wait(1000);
-                }
+                this.pingThreadSignaller.waitForTimeout(1000);
             }
         } catch (Exception ex) {
             // Silently ignore the exception, as the loop will exit if the connection drops.
         } finally {
-            this.pingThread = null;
+            synchronized (this.pingThreadSignaller) {
+                this.pingThread = null;
+            }
         }
     }
 
@@ -141,15 +142,15 @@ public class PeerDiscoveryClient {
      * @return If the client was pinging at the time of the method call.
      */
     private boolean stopPinging() {
-        if (this.isPinging()) {
-            synchronized (this.pingThreadLock) {
-                // TODO: Test and revise.
+        synchronized (this.pingThreadSignaller) {
+            if (this.isPinging()) {
                 this.pingThread.interrupt();
-                this.pingThreadLock.notify();
+                this.pingThreadSignaller.set();
+                this.pingThread = null;
+                return true;
             }
-            return true;
+            return false;
         }
-        return false;
     }
 
     /**
@@ -158,7 +159,7 @@ public class PeerDiscoveryClient {
      * @see MulticastClient#close()
      */
     public boolean close() {
-        if (this.client != null && !this.client.isClosed()) {
+        if (!this.client.isClosed()) {
             this.stopPinging();
             // Notify the group that the client is disconnecting.
             final String disconnectMessage = PeerMessage.createFormattedMessage(PeerMessage.MessageType.DISCONNECT, Environment.LOCAL_ADDRESS, this.nickName);

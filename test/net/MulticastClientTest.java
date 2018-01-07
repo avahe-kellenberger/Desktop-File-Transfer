@@ -1,6 +1,7 @@
 package net;
 
 import tech.avahe.filetransfer.net.MulticastClient;
+import tech.avahe.filetransfer.threading.ThreadSignaller;
 
 import java.io.IOException;
 import java.util.ArrayList;

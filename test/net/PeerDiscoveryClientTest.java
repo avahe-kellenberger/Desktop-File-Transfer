@@ -2,6 +2,7 @@ package net;
 
 import tech.avahe.filetransfer.net.peerdiscovery.PeerDiscoveryClient;
 import tech.avahe.filetransfer.net.peerdiscovery.PeerListener;
+import tech.avahe.filetransfer.threading.ThreadSignaller;
 
 import java.io.IOException;
 

@@ -1,4 +1,4 @@
-package net;
+package tech.avahe.filetransfer.threading;
 
 /**
  *
