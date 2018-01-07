@@ -1,47 +1,34 @@
-package tech.avahe.filetransfer.net.multicast;
+package tech.avahe.filetransfer.net;
 
 
 import java.io.IOException;
 import java.net.*;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.function.Consumer;
 
 /**
  * @author Avahe
  */
 public class MulticastClient {
 
-    private static final String GROUP_ADDRESS = "224.0.0.17";
-    private static final int PORT = 7899;
-    private static final InetAddress INET_ADDRESS;
-
-    // Initialize the InetAddress.
-    static {
-        InetAddress tempAddress = null;
-        try {
-            tempAddress = InetAddress.getByName(MulticastClient.GROUP_ADDRESS);
-        } catch (UnknownHostException ex) {
-            // If the host cannot be resolved, exit the program, as multicasting will not be accessible.
-            ex.printStackTrace();
-            System.exit(-1);
-        }
-        INET_ADDRESS = tempAddress;
-    }
-
+	private final InetAddress address;
+	private final int port;
 	private final MulticastSocket multicastSocket;
-	private final CopyOnWriteArraySet<MulticastMessageListener> messageListeners;
+	private final CopyOnWriteArraySet<Consumer<String>> messageListeners;
 	private Thread receiveThread;
 	private final Object receiveThreadLock = new Object();
 	private boolean listening = false;
 
     /**
-     * Creates a new multicast client, which automatically joins
-     * the multicast group {@link MulticastClient#PORT} and binds to port {@link MulticastClient#GROUP_ADDRESS}.
+     * Creates a new client, which automatically joins the given group address at the given port number.
      * @throws IOException Thrown if an I/O exception occurs while creating the underlying MulticastSocket.
      */
-    public MulticastClient() throws IOException {
+    public MulticastClient(final String groupAddress, final int port) throws IOException {
+    	this.address = InetAddress.getByName(groupAddress);
+    	this.port = port;
 		this.messageListeners = new CopyOnWriteArraySet<>();
-		this.multicastSocket = new MulticastSocket(MulticastClient.PORT);
-		this.multicastSocket.joinGroup(InetAddress.getByName(MulticastClient.GROUP_ADDRESS));
+		this.multicastSocket = new MulticastSocket(this.port);
+		this.multicastSocket.joinGroup(this.address);
     }
 
     /**
@@ -85,7 +72,7 @@ public class MulticastClient {
 				if (this.listening) {
 					// Notify the listeners of the incoming message.
 					final String message = new String(packet.getData(), packet.getOffset(), packet.getLength());
-                    MulticastMessage.notifyListeners(message, this.messageListeners);
+					this.messageListeners.forEach(listener -> listener.accept(message));
 				}
 			} while (this.listening);
 		} catch (IOException ex) {
@@ -124,21 +111,21 @@ public class MulticastClient {
      */
     public void send(final String message) throws IOException {
     	final byte[] buffer = message.getBytes();
-		this.multicastSocket.send(new DatagramPacket(buffer, buffer.length, MulticastClient.INET_ADDRESS, MulticastClient.PORT));
+		this.multicastSocket.send(new DatagramPacket(buffer, buffer.length, this.address, this.port));
     }
 
     /**
      * Closes the client's connection.
 	 * <p>This method will return false if the client was closed prior to this method being called.</p>
-     * @return If the client was closed successfully.
+     * @return If the client was already closed at the time of this method call.
      */
     public boolean close() {
-		final boolean stoppedListening = this.stopListening();
-		final boolean closedMulticast = !this.multicastSocket.isClosed();
-		if (closedMulticast) {
+		this.stopListening();
+		if (!this.multicastSocket.isClosed()) {
 			this.multicastSocket.close();
+			return true;
 		}
-		return stoppedListening || closedMulticast;
+		return false;
     }
 
 	/**
@@ -179,7 +166,7 @@ public class MulticastClient {
      * @param listener The listener to add.
      * @return If the listener was added successfully.
      */
-    public boolean addMessageListener(final MulticastMessageListener listener) {
+    public boolean addMessageListener(final Consumer<String> listener) {
     	return this.messageListeners.add(listener);
     }
 
@@ -189,7 +176,7 @@ public class MulticastClient {
      * @param listener The listener to check for.
      * @return If the client contains the listener.
      */
-    public boolean containsMessageListener(final MulticastMessageListener listener) {
+    public boolean containsMessageListener(final Consumer<String> listener) {
     	return this.messageListeners.contains(listener);
     }
 
@@ -199,7 +186,7 @@ public class MulticastClient {
      * @param listener The listener to remove.
      * @return If the listener was removed successfully.
      */
-    public boolean removeMessageListener(final MulticastMessageListener listener) {
+    public boolean removeMessageListener(final Consumer<String> listener) {
     	return this.messageListeners.remove(listener);
     }
 

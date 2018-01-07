@@ -25,31 +25,33 @@ import javax.swing.JFrame;
 public class Settings {
 
 	/**
-	 * The settings keys and default values.
+	 * The settings entries.
 	 */
-	public enum Keys {
+	public enum Entry {
 		
-		USERNAME("username", System.getProperty("user.name")),
+		NICK_NAME("nick-name", System.getProperty("user.name")),
 		GUI_STATE("gui-state", "" + JFrame.NORMAL);
-		
-		private final String name;
+
+		private static final String SEPARATOR = "=";
+
+		private final String key;
 		private final String defaultValue;
 		
 		/**
-		 * Creates a key with a default value.
-		 * @param name The name of the key.
-		 * @param defaultValue The default value of the key.
+		 * Creates an entry with a key and a default value.
+		 * @param key The name of the key.
+		 * @param defaultValue The default value associated with the key.
 		 */
-		Keys(final String name, final String defaultValue) {
-			this.name = name;
+		Entry(final String key, final String defaultValue) {
+			this.key = key;
 			this.defaultValue = defaultValue;
 		}
 		
 		/**
-		 * @return The name of the key.
+		 * @return The key of the setting.
 		 */
-		public String getName() {
-			return this.name;
+		public String getKey() {
+			return this.key;
 		}
 		
 		/**
@@ -68,8 +70,8 @@ public class Settings {
 	
 	// Loads the default settings.
 	static {
-		for (final Keys key : Keys.values()) {
-			Settings.DEFAULT_SETTINGS.put(key.getName(), key.getDefaultValue());
+		for (final Entry entry : Entry.values()) {
+			Settings.DEFAULT_SETTINGS.put(entry.getKey(), entry.getDefaultValue());
 		}
 	}
 	
@@ -84,7 +86,7 @@ public class Settings {
 	}
 	
 	/**
-	 * Creates the default configuration file, as defined by {@link Settings.Keys}.
+	 * Creates the default configuration file, as defined by {@link Entry}.
 	 * @return Key/Value pairs of the file.
 	 * @throws IOException Thrown if the config file cannot be written to.
 	 */
@@ -107,7 +109,7 @@ public class Settings {
 			final LinkedHashMap<String, String> settings = new LinkedHashMap<>();
 			String line;
 			while ((line = reader.readLine()) != null) {
-				final String[] split = line.split("=");
+				final String[] split = line.split(Entry.SEPARATOR);
 				settings.put(split[0], split[1]);
 			}
 			return settings;
@@ -158,7 +160,7 @@ public class Settings {
 		}
 		try (final BufferedWriter writer = new BufferedWriter(new FileWriter(Environment.CONFIG_FILE))) {
 			for (final Map.Entry<String, String> entry : settings.entrySet()) {
-				writer.write(entry.getKey() + "=" + entry.getValue() + System.lineSeparator());
+				writer.write(entry.getKey() + Entry.SEPARATOR + entry.getValue() + System.lineSeparator());
 			}
 		}
 	}

@@ -1,6 +1,8 @@
 package tech.avahe.filetransfer.common;
 
 import java.io.File;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 /**
  * 
@@ -8,6 +10,22 @@ import java.io.File;
  *
  */
 public class Environment {
+
+	/**
+	 * The local address of this machine.
+	 */
+	public static final String LOCAL_ADDRESS;
+
+	static {
+		InetAddress tempAddress = null;
+		try {
+			tempAddress = InetAddress.getLocalHost();
+		} catch (final UnknownHostException ex) {
+			ex.printStackTrace();
+			System.exit(-1);
+		}
+		LOCAL_ADDRESS = tempAddress.getHostAddress();
+	}
 
 	/**
 	 * The home directory of the user that is currently logged in.

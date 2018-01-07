@@ -5,7 +5,7 @@ package net;
  * @author Avahe
  *
  */
-public class Signal {
+public class ThreadSignaller {
 	
 	private boolean signaled = false;
 	

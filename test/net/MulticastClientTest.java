@@ -1,16 +1,10 @@
 package net;
 
-import tech.avahe.filetransfer.net.TCPClient;
-import tech.avahe.filetransfer.net.multicast.MulticastClient;
-import tech.avahe.filetransfer.net.multicast.MulticastMessage;
-import tech.avahe.filetransfer.net.multicast.MulticastMessageAdapter;
-import tech.avahe.filetransfer.net.multicast.MulticastMessageListener;
+import tech.avahe.filetransfer.net.MulticastClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * @author Avahe
@@ -42,8 +36,10 @@ public class MulticastClientTest {
 		
 		try {
 			// Initialize the test clients.
-			clientA = new MulticastClient();
-			clientB = new MulticastClient();
+			final String ipAddress = "224.0.0.17";
+			final int port = 7899;
+			clientA = new MulticastClient(ipAddress, port);
+			clientB = new MulticastClient(ipAddress, port);
 
 			if (clientA.isClosed() || clientB.isClosed()) {
 				throw new Exception("Clients were closed after being initialized; aborting tests.");
@@ -56,16 +52,9 @@ public class MulticastClientTest {
 			report.append("Checking for basic connectivity (sending/receiving messages)");
 			report.append(System.lineSeparator());
 			report.append(this.checkConnectivity(clientA, clientB));
-
-			report.append(System.lineSeparator());
 			report.append(System.lineSeparator());
 
-			report.append("Testing sending and receiving MulticastMessages.");
-			report.append(System.lineSeparator());
-			report.append(this.testMulticastMessages(clientA, clientB));
-			report.append(System.lineSeparator());
-			
-			
+
 		} catch (IOException ex) {
 			ex.printStackTrace();
 		} finally {
@@ -80,152 +69,59 @@ public class MulticastClientTest {
 
 	/**
 	 * Tests sending and receiving <code>DatagramPackets</code> via <code>MulticastClient</code>.
-	 * @param clientA A multicast client.
-	 * @param clientB Another multicast client.
+	 * @param clientA A peerdiscovery client.
+	 * @param clientB Another peerdiscovery client.
 	 * @return If the connectivity test passed.
 	 */
 	private String checkConnectivity(final MulticastClient clientA, final MulticastClient clientB) {
 		final StringBuilder report = new StringBuilder();
-		final Signal signal = new Signal();
-		final ArrayList<String> received = new ArrayList<>(3);
+		final String lineSeparator = System.lineSeparator();
+		final ArrayList<String> receivedMessages = new ArrayList<>(3);
+		final ThreadSignaller signaller = new ThreadSignaller();
 
 		// Listen for incoming packets.
-		final MulticastMessageAdapter adapter = new MulticastMessageAdapter() {
-			@Override
-			public void onUnknownMessage(String message) {
-				received.add(message);
-				signal.set();
-			}
+		final Consumer<String> listener = message -> {
+			receivedMessages.add(message);
+			signaller.set();
 		};
-		clientB.addMessageListener(adapter);
+
+		clientB.addMessageListener(listener);
 		
 		final String[] messages = { "Message 0", "Message 1", "Message 2" };
 		
 		try {
 			// Send a message and check if it is received.
 			clientA.send(messages[0]);
-			signal.waitForTimeout(5000);
+			signaller.waitForTimeout(5000);
 			report.append("Client received a message: ");
-			report.append(received.contains(messages[0]));
-			report.append(System.lineSeparator());
+			report.append(receivedMessages.contains(messages[0]));
+			report.append(lineSeparator);
 
 			// Stop the client from listening, and make sure it doesn't receive a message.
 			report.append("Client properly stopped listening: ");
 			report.append(clientB.stopListening());
-			report.append(System.lineSeparator());
+			report.append(lineSeparator);
 
 			clientA.send(messages[1]);
-			signal.waitForTimeout(1000);
+			signaller.waitForTimeout(1000);
 			report.append("Client properly not receiving a message: ");
-			report.append(!received.contains(messages[1]));
-			report.append(System.lineSeparator());
+			report.append(!receivedMessages.contains(messages[1]));
+			report.append(lineSeparator);
 
 			// Start listening for messages again, and check to see if it still receives a message.
 			report.append("Client start listening as expected: ");
 			report.append(clientB.listen());
-			report.append(System.lineSeparator());
+			report.append(lineSeparator);
 
 			clientA.send(messages[2]);
-			signal.waitForTimeout(5000);
+			signaller.waitForTimeout(5000);
 			report.append("Client receiving a message after listening was re-enabled: ");
-			report.append(received.contains(messages[2]));
-			report.append(System.lineSeparator());
+			report.append(receivedMessages.contains(messages[2]));
+			report.append(lineSeparator);
 		} catch (IOException | InterruptedException ex) {
 			ex.printStackTrace();
 		} finally {
-			clientB.removeMessageListener(adapter);
-		}
-		return report.toString();
-	}
-
-	/**
-	 * Tests the messaging protocol for MulticastClients.
-	 * @param clientA A multicast client.
-	 * @param clientB Another multicast client.
-	 * @return If the messaging test passed.
-	 */
-	private String testMulticastMessages(final MulticastClient clientA, final MulticastClient clientB) {
-		final StringBuilder report = new StringBuilder();
-		final Signal signal = new Signal();
-
-		final List<MulticastMessage> messageTypes = new ArrayList<>(MulticastMessage.values().length);
-		for (final MulticastMessage m : MulticastMessage.values()) {
-			messageTypes.add(m);
-		}
-
-		final MulticastMessageListener listener = new MulticastMessageListener() {
-
-			public void onIDShare(String nick, String ipAddress) {
-				messageTypes.remove(MulticastMessage.ID_SHARE);
-				signal.set();
-			}
-
-			public void onIDRequest() {
-				messageTypes.remove(MulticastMessage.ID_REQUEST);
-				signal.set();
-			}
-
-			public void onSendRequest(String ipAddress) {
-				messageTypes.remove(MulticastMessage.SEND_REQUEST);
-				signal.set();
-			}
-
-			public void onSendRequestAccepted(String ipAddress, int port) {
-				messageTypes.remove(MulticastMessage.SEND_REQUEST_ACCEPTED);
-				signal.set();
-			}
-
-			public void onSendRequestRejected(String ipAddress) {
-				messageTypes.remove(MulticastMessage.SEND_REQUEST_REJECTED);
-				signal.set();
-			}
-
-			public void onDisconnect(String ipAddress) {
-				messageTypes.remove(MulticastMessage.DISCONNECT);
-				signal.set();
-			}
-
-			public void onUnknownMessage(String message) { }
-			public void onMessage(final String message) { }
-
-		};
-
-		clientB.addMessageListener(listener);
-
-		try {
-			final String nick = "clientB";
-			final String ip = TCPClient.LOCAL_ADDRESS;
-			final int port = 1337;
-
-			final HashMap<MulticastMessage, String> messageMap = new HashMap<>();
-			messageMap.put(MulticastMessage.ID_SHARE, MulticastMessage.createIDShareMessage(nick, ip));
-			messageMap.put(MulticastMessage.ID_REQUEST, MulticastMessage.createIDRequestMessage(ip));
-			messageMap.put(MulticastMessage.SEND_REQUEST, MulticastMessage.createSendRequestMessage(ip));
-			messageMap.put(MulticastMessage.SEND_REQUEST_ACCEPTED, MulticastMessage.createSendRequestAcceptedMessage(ip, port));
-			messageMap.put(MulticastMessage.SEND_REQUEST_REJECTED, MulticastMessage.createSendRequestRejectedMessage(ip));
-			messageMap.put(MulticastMessage.DISCONNECT, MulticastMessage.createDisconnectMessage(ip));
-
-			for (final Map.Entry<MulticastMessage, String> entry : messageMap.entrySet()) {
-				clientA.send(entry.getValue());
-				signal.waitForTimeout(3000);
-				final MulticastMessage messageType = entry.getKey();
-				report.append("Client received ");
-				report.append(messageType.name());
-				report.append(" message: ");
-				report.append(!messageTypes.contains(messageType));
-				report.append(System.lineSeparator());
-			}
-
-		} catch (IOException ex) {
-			report.append("Failed to send multicast messages - terminating test.");
-			report.append(System.lineSeparator());
-			ex.printStackTrace();
-		} catch (InterruptedException ex) {
-			report.append("Thread using Signal was unexpectedly interrupted - terminating test.");
-			report.append(System.lineSeparator());
-			ex.printStackTrace();
-		} finally {
-			clientA.removeMessageListener(listener);
+			clientB.removeMessageListener(listener);
 		}
 		return report.toString();
 	}
