@@ -6,6 +6,7 @@ import tech.avahe.filetransfer.threading.ThreadSignaller;
 
 import java.io.IOException;
 import java.net.SocketException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -170,6 +171,7 @@ public class PeerDiscoveryClient {
                     // Silently ignore issues sending disconnect messages.
                 }
             }
+            this.peers.clear();
             return this.client.close();
         }
         return false;
@@ -200,7 +202,7 @@ public class PeerDiscoveryClient {
     /**
      * Returns if the client contains the <code>PeerListener</code>.
      * @param listener The listener being checked for.
-     * @return If the client contains the listner.
+     * @return If the client contains the listener.
      */
     public boolean containsPeerListener(final PeerListener listener) {
         return this.peerListeners.contains(listener);
@@ -213,6 +215,18 @@ public class PeerDiscoveryClient {
      */
     public boolean removePeerListener(final PeerListener listener) {
         return  this.peerListeners.remove(listener);
+    }
+
+    /**
+     * Retrieves the currently active peers on the network as an unmodifiable map.
+     *
+     * <p>This map has the peer's IP address as the keys, and nick names as the values.
+     * Note that this will always be empty if the <code>PeerDiscoveryListener</code> is null or has been closed.</p>
+     *
+     * @return The peers currently on the local network.
+     */
+    public Map<String, String> getPeersOnNetwork() {
+        return Collections.unmodifiableMap(this.peers);
     }
 
 }
