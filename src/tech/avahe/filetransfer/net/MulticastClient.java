@@ -31,34 +31,12 @@ public class MulticastClient {
 		this.multicastSocket.joinGroup(this.address);
     }
 
-    /**
-     * Tells the client to start listening for incoming packets.
-     * @return If the client has started listening after this method call.port
-     * This method will return false if it was already listening for packets.
-     */
-    public boolean listen() {
-        synchronized (this.receiveThreadLock) {
-            if (this.receiveThread == null || !this.receiveThread.isAlive()) {
-                this.listening = true;
-                // Create a thread which listens for packets while the socket is open.
-                this.receiveThread = new Thread(this::receive);
-                // Start listening for messages.
-                this.receiveThread.start();
-            } else if (this.listening) {
-                    return false;
-            } else {
-                this.listening = true;
-            }
-        }
-        return true;
-    }
-
 	/**
 	 * Receives datagram packets from the MulticastSocket.
 	 */
 	private void receive() {
 		try {
-            final byte[] buffer = new byte[4096];
+			final byte[] buffer = new byte[4096];
 			final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 			do {
 				this.multicastSocket.receive(packet);
@@ -84,23 +62,51 @@ public class MulticastClient {
 	}
 
     /**
-     * Stops the client from listening to incoming packets.
-	 *
-	 * <p>This method will return false if the client was not listening for packets
-	 * prior to this method being called.</p>
-	 *
-     * @return If the client successfully stopped listening.
+     * Tells the client to start listening for incoming packets.
+     * @return If the client has started listening after this method call.port
+     * This method will return false if it was already listening for packets.
      */
-    public boolean stopListening() {
-    	synchronized (this.receiveThreadLock) {
-			if (this.receiveThread != null && this.receiveThread.isAlive() && this.listening) {
+    public boolean listen() {
+    	if (this.isListening()) {
+    		return false;
+		}
+
+        synchronized (this.receiveThreadLock) {
+			this.receiveThread = new Thread(this::receive);
+			this.receiveThread.start();
+			this.listening = true;
+        }
+        return true;
+    }
+
+	/**
+	 * @return If the client is not closed and is listening for incoming messages.
+	 * @see MulticastClient#isClosed()
+	 */
+	public boolean isListening() {
+		if (this.isClosed()) {
+			return false;
+		}
+		synchronized (this.receiveThreadLock) {
+			return this.receiveThread != null && this.receiveThread.isAlive() && !this.receiveThread.isInterrupted() && this.listening;
+		}
+	}
+
+	/**
+	 * Stops the client from listening to incoming packets.
+	 *
+	 * @return If the client was not listening for packets prior to this method being called.
+	 */
+	public boolean stopListening() {
+		synchronized (this.receiveThreadLock) {
+			if (this.isListening()) {
 				this.receiveThread.interrupt();
 				this.listening = false;
 				return true;
 			}
 			return false;
 		}
-    }
+	}
 
     /**
      * Sends a message from the locally connected socket.
@@ -116,8 +122,7 @@ public class MulticastClient {
 
     /**
      * Closes the client's connection.
-	 * <p>This method will return false if the client was closed prior to this method being called.</p>
-     * @return If the client was already closed at the time of this method call.
+     * @return If the client was closed prior to this method being called.
      */
     public boolean close() {
 		this.stopListening();
@@ -136,19 +141,6 @@ public class MulticastClient {
     	return this.multicastSocket == null || this.multicastSocket.isClosed();
 	}
 
-	/**
-	 * @return If the client is not closed and is listening for incoming messages.
-	 * @see MulticastClient#isClosed()
-	 */
-	public boolean isListening() {
-		if (this.isClosed()) {
-			return false;
-		}
-		synchronized (this.receiveThreadLock) {
-			return this.receiveThread != null && this.receiveThread.isAlive() && !this.receiveThread.isInterrupted();
-		}
-	}
-
     /**
      * Disables or enables datagrams from looping back to the local socket.
      * @param disable If the loopback mode should be disabled.
@@ -162,7 +154,6 @@ public class MulticastClient {
 
     /**
      * Adds a listener to the client, which is notified when a packet is received.
-	 * <p>This method will return false if the listener existed before this method was called.</p>
      * @param listener The listener to add.
      * @return If the listener was added successfully.
      */
@@ -172,7 +163,6 @@ public class MulticastClient {
 
     /**
      * Checks if a message listener has been added to the client.
-	 * <p>This method will return true if the listener existed before this method was called.</p>
      * @param listener The listener to check for.
      * @return If the client contains the listener.
      */
@@ -182,7 +172,6 @@ public class MulticastClient {
 
     /**
      * Removes a message listener from the client.
-	 * <p>This method will return false if the listener did not exist before this method was called.</p>
      * @param listener The listener to remove.
      * @return If the listener was removed successfully.
      */

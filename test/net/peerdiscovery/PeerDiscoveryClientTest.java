@@ -1,4 +1,4 @@
-package net;
+package net.peerdiscovery;
 
 import tech.avahe.filetransfer.net.peerdiscovery.PeerDiscoveryClient;
 import tech.avahe.filetransfer.net.peerdiscovery.PeerListener;
@@ -30,7 +30,7 @@ public class PeerDiscoveryClientTest {
         final StringBuilder report = new StringBuilder();
         try {
             // Run the test suite.
-            report.append("Initiating tests.");
+            report.append("PeerDiscoveryClientTest: ");
             report.append(System.lineSeparator());
             report.append(this.checkConnectivity());
             report.append(System.lineSeparator());

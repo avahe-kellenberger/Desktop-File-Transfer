@@ -29,9 +29,9 @@ public class MulticastClientTest {
 	 * Starts the tests for MulticastClient.java.
 	 * @throws Exception Thrown if the conditions to test the class cannot be met.
 	 */
-	private MulticastClientTest() throws Exception {
+	public MulticastClientTest() throws Exception {
 		final StringBuilder report = new StringBuilder();
-		report.append("Initializing the test clients...");
+		report.append("MulticastClientTest: ");
 		report.append(System.lineSeparator());
 		MulticastClient clientA = null, clientB = null;
 		

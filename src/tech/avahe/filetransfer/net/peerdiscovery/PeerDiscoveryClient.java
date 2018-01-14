@@ -168,7 +168,7 @@ public class PeerDiscoveryClient {
                 try {
                     this.client.send(disconnectMessage);
                 } catch (IOException ex) {
-                    // Silently ignore issues sending disconnect messages.
+                    // Silently ignore issues sending close messages.
                 }
             }
             this.peers.clear();
