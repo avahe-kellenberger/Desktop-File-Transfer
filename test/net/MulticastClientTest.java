@@ -45,7 +45,7 @@ public class MulticastClientTest {
 			if (clientA.isClosed() || clientB.isClosed()) {
 				throw new Exception("Clients were closed after being initialized; aborting tests.");
 			}
-			if (!clientB.listen()) {
+			if (!clientB.startListening()) {
 				throw new Exception("Client B failed to start listening; aborting tests.");
 			}
 
@@ -111,7 +111,7 @@ public class MulticastClientTest {
 
 			// Start listening for messages again, and check to see if it still receives a message.
 			report.append("Client start listening as expected: ");
-			report.append(clientB.listen());
+			report.append(clientB.startListening());
 			report.append(lineSeparator);
 
 			clientA.send(messages[2]);

@@ -14,10 +14,11 @@ public class MulticastClient {
 	private final InetAddress address;
 	private final int port;
 	private final MulticastSocket multicastSocket;
-	private final CopyOnWriteArraySet<Consumer<String>> messageListeners;
-	private Thread receiveThread;
-	private final Object receiveThreadLock = new Object();
+
+	private Thread listenerThread;
+	private final Object listenerThreadLock = new Object();
 	private boolean listening = false;
+	private final CopyOnWriteArraySet<Consumer<String>> messageListeners;
 
     /**
      * Creates a new client, which automatically joins the given group address at the given port number.
@@ -34,31 +35,42 @@ public class MulticastClient {
 	/**
 	 * Receives datagram packets from the MulticastSocket.
 	 */
-	private void receive() {
+	private void listenForMessages() {
 		try {
 			final byte[] buffer = new byte[4096];
 			final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 			do {
 				this.multicastSocket.receive(packet);
-
-				// Don't dispatch trailing packets if the thread was interrupted and null.
-				synchronized (this.receiveThreadLock) {
-					if (this.listening && this.receiveThread.isInterrupted()) {
-						Thread.interrupted();
-					}
-				}
 				if (this.listening) {
-					// Notify the listeners of the incoming message.
-					final String message = new String(packet.getData(), packet.getOffset(), packet.getLength());
-					this.messageListeners.forEach(listener -> listener.accept(message));
+					this.clearThreadInterruptedState();
+					this.notifyMessageListeners(new String(packet.getData(), packet.getOffset(), packet.getLength()));
 				}
 			} while (this.listening);
 		} catch (IOException ex) {
 			// Silently ignore the exception, as the loop will exit if the connection drops.
 		} finally {
-			this.receiveThread = null;
+			this.listenerThread = null;
 			this.listening = false;
 		}
+	}
+
+	/**
+	 * Sets the listening thread's interrupted state to false.
+	 */
+	private void clearThreadInterruptedState() {
+		synchronized (this.listenerThreadLock) {
+			if (this.listenerThread.isInterrupted()) {
+				Thread.interrupted();
+			}
+		}
+	}
+
+	/**
+	 * Notifies the listeners with a message.
+	 * @param message The message to send to all the listeners.
+	 */
+	private void notifyMessageListeners(final String message) {
+		this.messageListeners.forEach(listener -> listener.accept(message));
 	}
 
     /**
@@ -66,14 +78,14 @@ public class MulticastClient {
      * @return If the client has started listening after this method call.port
      * This method will return false if it was already listening for packets.
      */
-    public boolean listen() {
+    public boolean startListening() {
     	if (this.isListening()) {
     		return false;
 		}
 
-        synchronized (this.receiveThreadLock) {
-			this.receiveThread = new Thread(this::receive);
-			this.receiveThread.start();
+        synchronized (this.listenerThreadLock) {
+			this.listenerThread = new Thread(this::listenForMessages);
+			this.listenerThread.start();
 			this.listening = true;
         }
         return true;
@@ -87,8 +99,8 @@ public class MulticastClient {
 		if (this.isClosed()) {
 			return false;
 		}
-		synchronized (this.receiveThreadLock) {
-			return this.receiveThread != null && this.receiveThread.isAlive() && !this.receiveThread.isInterrupted() && this.listening;
+		synchronized (this.listenerThreadLock) {
+			return this.listenerThread != null && this.listenerThread.isAlive() && !this.listenerThread.isInterrupted() && this.listening;
 		}
 	}
 
@@ -98,9 +110,9 @@ public class MulticastClient {
 	 * @return If the client was not listening for packets prior to this method being called.
 	 */
 	public boolean stopListening() {
-		synchronized (this.receiveThreadLock) {
+		synchronized (this.listenerThreadLock) {
 			if (this.isListening()) {
-				this.receiveThread.interrupt();
+				this.listenerThread.interrupt();
 				this.listening = false;
 				return true;
 			}

@@ -45,7 +45,7 @@ public class PeerDiscoveryClient {
         // Disable the loopback mode so the program will not receive its own messages.
         this.client.setLoopbackMode(true);
         this.client.addMessageListener(this::messageHandler);
-        this.client.listen();
+        this.client.startListening();
         this.startPinging();
     }
 
