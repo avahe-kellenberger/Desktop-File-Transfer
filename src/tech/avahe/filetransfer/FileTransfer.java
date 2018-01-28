@@ -34,7 +34,7 @@ public abstract class FileTransfer {
 	 * @see PeerDiscoveryClient#PeerDiscoveryClient
 	 * @see MulticastClient#setLoopbackMode(boolean)
 	 */
-	public FileTransfer() throws IOException {
+	public FileTransfer() throws IOException, InterruptedException {
 		this.loadSettings();
 		if (this.nickName == null) {
 			this.nickName = Entry.NICK_NAME.getDefaultValue();

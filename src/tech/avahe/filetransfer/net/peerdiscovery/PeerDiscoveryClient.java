@@ -3,9 +3,11 @@ package tech.avahe.filetransfer.net.peerdiscovery;
 import tech.avahe.filetransfer.common.Environment;
 import tech.avahe.filetransfer.net.MulticastClient;
 import tech.avahe.filetransfer.threading.ThreadSignaller;
+import tech.avahe.filetransfer.util.Buffers;
 
 import java.io.IOException;
-import java.net.SocketException;
+import java.net.SocketAddress;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,7 +38,7 @@ public class PeerDiscoveryClient {
      * @throws IOException Thrown if the connection cannot be established.
      * @see MulticastClient#MulticastClient(String, int)
      */
-    public PeerDiscoveryClient(final String nickName) throws IOException {
+    public PeerDiscoveryClient(final String nickName) throws IOException, InterruptedException {
         this.nickName = nickName;
         this.peers = new HashMap<>();
         this.peerListeners = new CopyOnWriteArraySet<>();
@@ -44,8 +46,8 @@ public class PeerDiscoveryClient {
         this.client = new MulticastClient(GROUP_ADDRESS, PORT);
         // Disable the loopback mode so the program will not receive its own messages.
         this.client.setLoopbackMode(true);
-        this.client.addMessageListener(this::messageHandler);
-        this.client.startListening();
+        this.client.addDataListener(this::dataHandler);
+        this.client.startListening(1000);
         this.startPinging();
     }
 
@@ -66,11 +68,12 @@ public class PeerDiscoveryClient {
     }
 
     /**
-     * Updates the list of peers, and notifies all <code>PeerListeners</code>, based on received messages.
-     * @param message The received message.
+     * Updates the list of peers, and notifies all <code>PeerListeners</code>, based on received data.
+     * @param remoteAddress The address from which the data was sent.
+     * @param data The received data.
      */
-    private void messageHandler(final String message) {
-        final PeerMessage peerMessage = PeerMessage.parseFormattedMessage(message);
+    private void dataHandler(final SocketAddress remoteAddress, final ByteBuffer data) {
+        final PeerMessage peerMessage = PeerMessage.parseFormattedMessage(Buffers.toString(data));
         final String ipAddress = peerMessage.getIpAddress();
         final String receivedNickName = peerMessage.getNickName();
         final String cachedNickName = this.peers.get(ipAddress);
@@ -146,7 +149,7 @@ public class PeerDiscoveryClient {
         synchronized (this.pingThreadSignaller) {
             if (this.isPinging()) {
                 this.pingThread.interrupt();
-                this.pingThreadSignaller.set();
+                this.pingThreadSignaller.signal();
                 this.pingThread = null;
                 return true;
             }
@@ -159,7 +162,7 @@ public class PeerDiscoveryClient {
      * @return If the client was already closed at the time of this method call.
      * @see MulticastClient#close()
      */
-    public boolean close() {
+    public void close() {
         if (!this.client.isClosed()) {
             this.stopPinging();
             // Notify the group that the client is disconnecting.
@@ -172,9 +175,8 @@ public class PeerDiscoveryClient {
                 }
             }
             this.peers.clear();
-            return this.client.close();
+            this.client.close();
         }
-        return false;
     }
 
     /**
@@ -182,11 +184,11 @@ public class PeerDiscoveryClient {
      * Note: This is disabled by default, and should not be enabled except for testing purposes.
      *
      * @param disable If the loopback mode should be disabled.
-     * @throws SocketException Thrown if there is an error setting the socket flag.
+     * @throws IOException Thrown if there is an error setting the socket flag.
      *
      * @see MulticastClient#setLoopbackMode(boolean)
      */
-    public void setLoopbackMode(final boolean disable) throws SocketException {
+    public void setLoopbackMode(final boolean disable) throws IOException {
         this.client.setLoopbackMode(disable);
     }
 

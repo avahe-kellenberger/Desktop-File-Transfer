@@ -7,53 +7,54 @@ package tech.avahe.filetransfer.threading;
  */
 public class ThreadSignaller {
 	
-	private boolean signaled = false;
+	private boolean signalled = false;
 	
 	/**
-	 * Notifies the <code>signaled</code> boolean to be set to true,
-	 * and notifies all threads waiting on the object.
+	 * Signals any threads to wake up that are waiting on this signaller.
 	 */
-	public synchronized void set() {
-		this.signaled = true;
+	public synchronized void signal() {
+		this.signalled = true;
         this.notifyAll();
     }
 
 	/**
-	 * Blocks the current thread until the <code>signaled</code> boolean is set to true.
-	 * @throws InterruptedException See {@link Object#wait()}.
+	 * Resets the signaller so no threads that are waiting on this signaller wake up anymore.
 	 */
-	public synchronized void waitIndefinitely() throws InterruptedException {
-		this.signaled = false;
-		do {
-			this.wait();
-		} while (!this.signaled);
+	public synchronized void reset() {
+		this.signalled = false;
 	}
 
 	/**
-	 * Blocks the current thread until the <code>signaled</code> boolean is set to true.
-	 * @param timeout The time in milliseconds.
+	 * Blocks the current thread until signalled.
 	 * @throws InterruptedException See {@link Object#wait()}.
 	 */
-	public synchronized void waitForTimeout(final long timeout) throws InterruptedException {
-		if (timeout <= 0) {
-			this.waitIndefinitely();
-		} else {
-			final long startNanos = System.nanoTime();
-			final long timeoutNanos = timeout * 1000000;
-			long remainingTimeout = timeout;
-			this.signaled = false;
-			do {
-				this.wait(remainingTimeout);
-				if (this.signaled) {
-					break;
-				}
-				final long elapsedNanos = System.nanoTime() - startNanos;
-				if (elapsedNanos >= timeoutNanos) {
-					break;
-				}
-				remainingTimeout = timeout - (elapsedNanos / 1000000);
-			} while (true);
+	public synchronized void waitIndefinitely() throws InterruptedException {
+		while (!this.signalled) {
+			this.wait();
 		}
+	}
+
+	/**
+	 * Blocks the current thread until signalled or the timeout is exceeded.
+	 * @param timeout The time in milliseconds.
+	 * @throws InterruptedException See {@link Object#wait()}.
+	 * @return If the signaller was set, otherwise false.
+	 */
+	public synchronized boolean waitForTimeout(final long timeout) throws InterruptedException {
+		if (timeout <= 0) {
+			return false;
+		}
+		final long startNanos = System.nanoTime();
+		final long timeoutNanos = timeout * 1000000;
+		while (!this.signalled) {
+			final long elapsedNanos = System.nanoTime() - startNanos;
+			if (elapsedNanos >= timeoutNanos) {
+				return false;
+			}
+			final long remainingTimeout = timeout - (elapsedNanos / 1000000);
+			this.wait(remainingTimeout);
+		}
+		return true;
 	}
 	
 }

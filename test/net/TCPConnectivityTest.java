@@ -2,6 +2,7 @@ package net;
 
 import tech.avahe.filetransfer.net.TCPClient;
 import tech.avahe.filetransfer.net.TCPServer;
+import tech.avahe.filetransfer.net.peerdiscovery.PeerInfo;
 
 import java.io.IOException;
 
@@ -23,7 +24,7 @@ public class TCPConnectivityTest {
         server.acceptIncomingConnections();
 
         final TCPClient client = new TCPClient();
-        client.connect("localhost", this.port);
+        client.connect(new PeerInfo("Nicholas", "localhost", this.port));
 
         client.close();
         server.close();

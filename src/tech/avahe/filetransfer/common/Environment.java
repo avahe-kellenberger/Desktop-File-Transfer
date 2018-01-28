@@ -12,6 +12,11 @@ import java.net.UnknownHostException;
 public class Environment {
 
 	/**
+	 * The local host of this machine.
+	 */
+	public static final InetAddress LOCAL_HOST;
+
+	/**
 	 * The local address of this machine.
 	 */
 	public static final String LOCAL_ADDRESS;
@@ -24,6 +29,7 @@ public class Environment {
 			ex.printStackTrace();
 			System.exit(-1);
 		}
+		LOCAL_HOST = tempAddress;
 		LOCAL_ADDRESS = tempAddress.getHostAddress();
 	}
 

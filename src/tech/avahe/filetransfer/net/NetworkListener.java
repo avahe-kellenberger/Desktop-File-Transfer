@@ -1,84 +1,102 @@
 package tech.avahe.filetransfer.net;
 
-import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.function.Consumer;
+import tech.avahe.filetransfer.threading.ThreadSignaller;
+import tech.avahe.filetransfer.util.Buffers;
 
+import java.io.IOException;
+import java.net.SocketAddress;
+import java.nio.ByteBuffer;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.function.BiConsumer;
+
+/**
+ * @author Avahe
+ */
 public abstract class NetworkListener {
 
-    private Thread listenerThread = new Thread(this::listen);
+    private final CopyOnWriteArraySet<BiConsumer<SocketAddress, ByteBuffer>> dataListeners = new CopyOnWriteArraySet<>();
+    private final ThreadSignaller listenerThreadStartedSignaller = new ThreadSignaller();
+    private final ThreadSignaller listenerThreadStoppedSignaller = new ThreadSignaller();
     private final Object listenerThreadLock = new Object();
+    private Thread listenerThread;
     private boolean shouldBeListening = false;
-    private final CopyOnWriteArraySet<Consumer<String>> messageListeners = new CopyOnWriteArraySet<>();
 
     /**
-     * Receives datagram packets from the MulticastSocket.
+     * Prepares the networked data source for reading.
+     * @throws IOException An error occurred while preparing the data source.
      */
-    protected abstract void listen();
+    protected abstract void prepare() throws IOException;
 
     /**
-     * Sets the listening thread's interrupted state to false.
+     * Reads from a networked data source.
+     * @param buffer The byte buffer to fill with read data.
+     * @return The remote socket address where the data was received from.
      */
-    protected void clearThreadInterruptedState() {
-        synchronized (this.listenerThreadLock) {
-            if (this.listenerThread.isInterrupted()) {
+    protected abstract SocketAddress read(final ByteBuffer buffer) throws IOException;
+
+    /**
+     * Receives data in a loop from the underlying ByteChannel.
+     */
+    private void listen() {
+        try {
+            final ByteBuffer buffer = ByteBuffer.allocateDirect(4096);
+            this.prepare();
+            this.listenerThreadStartedSignaller.signal();
+            while (true) {
+                final SocketAddress remoteAddress = this.read(buffer);
+                buffer.flip();
+                if (!this.shouldBeListening) {
+                    break;
+                }
+                // Ensures thread isn't interrupted (because we should be listening)
                 Thread.interrupted();
+                this.notifyDataListeners(remoteAddress, Buffers.copy(buffer));
+                buffer.clear();
             }
+        } catch (Exception ex) {
+            // Silently ignore the exception, as the loop will exit if the connection drops.
+        } finally {
+            this.onListeningStopped();
         }
     }
 
     /**
-     * Notifies the listeners with a message.
-     * @param message The message to send to all the listeners.
+     * Notifies the listeners of incoming data.
+     * @param buffer The data buffer to send to all the listeners.
      */
-    protected void notifyMessageListeners(final String message) {
-        this.messageListeners.forEach(listener -> listener.accept(message));
-    }
-
-    /**
-     * Tells the client to start listening for incoming packets.
-     * @return If the client has started listening after this method call.port
-     * This method will return false if it was already listening for packets.
-     */
-    public boolean startListening() {
-        if (this.isListening()) {
-            return false;
-        }
-        synchronized (this.listenerThreadLock) {
-            this.shouldBeListening = true;
-            this.listenerThread = this.createListenerThread();
-            this.listenerThread.start();
-        }
-        return true;
-    }
-
-    /**
-     * Creates a thread which invokes NetworkListener{@link #listen()},
-     * then safely shuts down when that method exists.
-     * @return A thread which invokes {@link NetworkListener#listen()} and safely shuts down afterward.
-     */
-    private Thread createListenerThread() {
-        return new Thread(() -> {
-            try {
-                this.listen();
-            } finally {
-                this.onListeningStopped();
-            }
-        });
+    private void notifyDataListeners(final SocketAddress remoteAddress, final ByteBuffer buffer) {
+        this.dataListeners.forEach(listener -> listener.accept(remoteAddress, buffer.asReadOnlyBuffer()));
     }
 
     /**
      * Invoked when the listening thread exits.
      */
     private void onListeningStopped() {
-        this.listenerThread = null;
-        this.shouldBeListening = false;
+        this.listenerThreadStoppedSignaller.signal();
+        synchronized (this.listenerThreadLock) {
+            this.listenerThread = null;
+        }
     }
 
     /**
-     * @return If the client should be listening, regardless of if it is listening or not.
+     * Tells the client to start listening for incoming packets.
+     * @param timeout The time (in milliseconds) to wait for the network listener to start listening.
+     * @return If the client has started listening after this method call.
+     * This method will return false if it was already listening for packets.
+     * @throws InterruptedException Thrown if the current thread is interrupted while waiting
+     * for the client to start listening.
      */
-    protected boolean shouldBeListening() {
-        return this.shouldBeListening;
+    public boolean startListening(final long timeout) throws InterruptedException {
+        if (this.isListening()) {
+            return false;
+        }
+        synchronized (this.listenerThreadLock) {
+            this.shouldBeListening = true;
+            this.listenerThread = new Thread(this::listen);
+            this.listenerThreadStartedSignaller.reset();
+            this.listenerThread.start();
+            return this.listenerThreadStartedSignaller.waitForTimeout(timeout);
+        }
     }
 
     /**
@@ -86,32 +104,41 @@ public abstract class NetworkListener {
      */
     public boolean isListening() {
         synchronized (this.listenerThreadLock) {
-            return this.listenerThread != null && this.listenerThread.isAlive() && !this.listenerThread.isInterrupted() && this.shouldBeListening;
+            return this.listenerThread != null && this.listenerThread.isAlive() &&
+                   !this.listenerThread.isInterrupted() && this.shouldBeListening;
         }
     }
 
     /**
      * Stops the client from listening to incoming data.
-     * @return If the client was not listening for data prior to this method being called.
      */
-    public boolean stopListening() {
-        synchronized (this.listenerThreadLock) {
-            if (this.isListening()) {
-                this.listenerThread.interrupt();
+    public void stopListening() {
+        if (this.isListening()) {
+            synchronized (this.listenerThreadLock) {
                 this.shouldBeListening = false;
-                return true;
+                this.listenerThread.interrupt();
             }
-            return false;
         }
     }
 
     /**
-     * Adds a listener to the client, which is notified when a packet is received.
+     * Stops the client from listening and waits for the listen thread to die.
+     * @param timeout The time (in milliseconds) to wait for the listen thread to die.
+     * @return Whether the listen thread died within the timeout.
+     */
+    public boolean stopListening(final long timeout) throws InterruptedException {
+        this.listenerThreadStoppedSignaller.reset();
+        this.stopListening();
+        return this.listenerThreadStoppedSignaller.waitForTimeout(timeout);
+    }
+
+    /**
+     * Adds a listener to the client, which is notified when data is received.
      * @param listener The listener to add.
      * @return If the listener was added successfully.
      */
-    public boolean addMessageListener(final Consumer<String> listener) {
-        return this.messageListeners.add(listener);
+    public boolean addDataListener(final BiConsumer<SocketAddress, ByteBuffer> listener) {
+        return this.dataListeners.add(listener);
     }
 
     /**
@@ -119,8 +146,8 @@ public abstract class NetworkListener {
      * @param listener The listener to check for.
      * @return If the client contains the listener.
      */
-    public boolean containsMessageListener(final Consumer<String> listener) {
-        return this.messageListeners.contains(listener);
+    public boolean containsDataListener(final BiConsumer<SocketAddress, ByteBuffer> listener) {
+        return this.dataListeners.contains(listener);
     }
 
     /**
@@ -128,8 +155,8 @@ public abstract class NetworkListener {
      * @param listener The listener to remove.
      * @return If the listener was removed successfully.
      */
-    public boolean removeMessageListener(final Consumer<String> listener) {
-        return this.messageListeners.remove(listener);
+    public boolean removeDataListener(final BiConsumer<SocketAddress, ByteBuffer> listener) {
+        return this.dataListeners.remove(listener);
     }
 
 }

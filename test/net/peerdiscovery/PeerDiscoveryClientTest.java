@@ -60,19 +60,19 @@ public class PeerDiscoveryClientTest {
             @Override
             public void onPeerConnected(String ipAddress, String nickName) {
                 messageReceivedFlags[0] = true;
-                signaller.set();
+                signaller.signal();
             }
 
             @Override
             public void onPeerNickNameChange(String ipAddress, String newNickName, String oldNickName) {
                 messageReceivedFlags[1] = true;
-                signaller.set();
+                signaller.signal();
             }
 
             @Override
             public void onPeerDisconnected(String ipAddress, String nickName) {
                 messageReceivedFlags[2] = true;
-                signaller.set();
+                signaller.signal();
             }
         };
 
